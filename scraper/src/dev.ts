@@ -5,16 +5,17 @@ import { readFileSync } from "fs";
 import { resolve } from "path";
 import { YahooFinanceScraper } from "./scrapers/YahooFinanceScraper.js";
 
-const ticker = process.argv[2] ?? "AAPL";
+const _ticker = process.argv[2] ?? "AAPL";
 
 
 /** Runs the scraper for a given ticker */
-async function runScraper(): Promise<void> {
+async function runScraper(symbol: string): Promise<void> {
     const scraper = new YahooFinanceScraper();
     try {
+        console.log("Initialising scraper...");
         await scraper.init();
-        console.log(`Scraping ${ticker}...`);
-        const result = await scraper.scrape(ticker);
+        console.log(`Scraping ${symbol}...`);
+        const result = await scraper.scrape(symbol);
         console.log(JSON.stringify(result, null, 2));
     } finally {
         await scraper.close();
@@ -35,6 +36,21 @@ function retrieveSymbolList(): string[] {
     return symbols;
 }
 
-//runScraper();
-const symbols = retrieveSymbolList();
+const allSymbols = retrieveSymbolList();
+console.log(`Retrieved ${allSymbols.length} symbols from file.`);
+let count = 0;
+
+while (count < 10) {
+    const symbol = allSymbols[count];
+    console.log(`\n=== Scraping ${symbol} ===`);
+    if (!symbol) {
+        console.warn(`No symbol found for line ${count + 2}, skipping.`);
+        count++;
+        continue;
+    }
+    await runScraper(symbol);
+    count++;
+}
+
+//const symbols = retrieveSymbolList();
 
