@@ -8,17 +8,13 @@ import { YahooFinanceScraper } from "./scrapers/YahooFinanceScraper.js";
 const _ticker = process.argv[2] ?? "AAPL";
 
 
-/** Runs the scraper for a given ticker */
-async function runScraper(symbol: string): Promise<void> {
-    const scraper = new YahooFinanceScraper();
+/** Scrapes a single symbol, logging and swallowing errors so the loop continues. */
+async function scrapeSymbol(scraper: YahooFinanceScraper, symbol: string): Promise<void> {
     try {
-        console.log("Initialising scraper...");
-        await scraper.init();
         console.log(`Scraping ${symbol}...`);
-        const result = await scraper.scrape(symbol);
-        console.log(JSON.stringify(result, null, 2));
-    } finally {
-        await scraper.close();
+        await scraper.scrape(symbol);
+    } catch (err) {
+        console.log(`Skipping ${symbol}: ${err instanceof Error ? err.message : err}`);
     }
 }
 
@@ -38,18 +34,26 @@ function retrieveSymbolList(): string[] {
 
 const allSymbols = retrieveSymbolList();
 console.log(`Retrieved ${allSymbols.length} symbols from file.`);
-let count = 0;
 
-while (count < 10) {
-    const symbol = allSymbols[count];
-    console.log(`\n=== Scraping ${symbol} ===`);
-    if (!symbol) {
-        console.warn(`No symbol found for line ${count + 2}, skipping.`);
+const scraper = new YahooFinanceScraper();
+try {
+    console.log("Initialising scraper...");
+    await scraper.init();
+
+    let count = 0;
+    while (count < 10) {
+        const symbol = allSymbols[count];
+        if (!symbol) {
+            console.warn(`No symbol found for line ${count + 2}, skipping.`);
+            count++;
+            continue;
+        }
+        console.log(`\n=== Scraping ${symbol} ===`);
+        await scrapeSymbol(scraper, symbol);
         count++;
-        continue;
     }
-    await runScraper(symbol);
-    count++;
+} finally {
+    await scraper.close();
 }
 
 //const symbols = retrieveSymbolList();

@@ -11,7 +11,7 @@ export class YahooFinanceScraper {
   private context: BrowserContext | null = null;
 
   async init(): Promise<void> {
-    this.browser = await chromium.launch({ headless: false });
+    this.browser = await chromium.launch({ headless: true });
     this.context = await this.browser.newContext({
       extraHTTPHeaders: {
         "Accept-Language": "en-US,en;q=0.9",
@@ -20,12 +20,12 @@ export class YahooFinanceScraper {
   }
 
   async scrape(ticker: string): Promise<void> {
-    // New page for each scrape to ensure a clean session (e.g. no cached data or cookies)
+    // Each scrape gets a fresh page; cookies are shared across pages within the context,
+    // so the consent popup is only dismissed once per session.
     const page = await this.newPage();
 
     // Navigate to the stock's page on Yahoo Finance
     await page.goto(`https://finance.yahoo.com/quote/${ticker}`);
-    await page.waitForLoadState("domcontentloaded");
 
     // Dismiss any consent popups that may appear for cookies
     await this.dismissConsentPopup(page);
@@ -81,7 +81,7 @@ export class YahooFinanceScraper {
   private async dismissConsentPopup(page: Page): Promise<void> {
     const rejectButton = page.locator('button[name="reject"]');
     try {
-      await rejectButton.waitFor({ state: "visible", timeout: 5_000 });
+      await rejectButton.waitFor({ state: "visible", timeout: 2_000 });
       await rejectButton.click();
       await page.waitForLoadState("domcontentloaded");
     } catch {
