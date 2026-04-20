@@ -1,0 +1,57 @@
+# Temp / local data files
+temp/
+
+# ========================
+# .NET / C#
+# ========================
+bin/
+obj/
+*.user
+*.suo
+*.vs/
+.vs/
+*.swp
+*.log
+*.nupkg
+project.lock.json
+project.fragment.lock.json
+artifacts/
+**/Properties/launchSettings.json
+
+# EF Core migrations snapshot artifacts
+# (keep actual migration files, ignore generated outputs)
+
+# .NET test results
+TestResults/
+*.trx
+*.coverage
+*.coveragexml
+
+# Rider
+.idea/
+*.sln.iml
+
+# ========================
+# Node.js / TypeScript
+# ========================
+node_modules/
+dist/
+build/
+*.js.map
+*.d.ts.map
+.env
+.env.local
+.env.*.local
+
+# Playwright
+playwright-report/
+test-results/
+/scraper/.auth/
+
+# ========================
+# General
+# ========================
+.DS_Store
+Thumbs.db
+*.orig
+*.bak
