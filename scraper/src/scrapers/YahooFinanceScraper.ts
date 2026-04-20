@@ -34,7 +34,7 @@ export class YahooFinanceScraper {
     const noDataContainer = page.locator("div.noData");
 
     // Wait for either the stats panel or the no-data message to render
-    await quoteStatisticsContainer.or(noDataContainer).first().waitFor({ state: "visible" });
+    await quoteStatisticsContainer.or(noDataContainer).first().waitFor({ state: "visible", timeout: 10_000 });
 
     if (await noDataContainer.isVisible()) {
       throw new Error(`No results found for ticker: ${ticker}`);
@@ -69,13 +69,21 @@ export class YahooFinanceScraper {
 
   /** Reads the raw `data-value` from a `fin-streamer` element by its `data-field`. */
   private async getFinStreamer(container: Locator, field: string): Promise<string | null> {
-    return container.locator(`fin-streamer[data-field="${field}"]`).first().getAttribute("data-value");
+    try {
+      return await container.locator(`fin-streamer[data-field="${field}"]`).first().getAttribute("data-value", { timeout: 3_000 });
+    } catch {
+      return null;
+    }
   }
 
   /** Reads the text content of a stat row's value cell, matched by its label title. */
   private async getLabelValue(container: Locator, title: string): Promise<string | null> {
-    const text = await container.locator(`li:has(.label[title="${title}"]) .value`).textContent();
-    return text?.trim() ?? null;
+    try {
+      const text = await container.locator(`li:has(.label[title="${title}"]) .value`).textContent({ timeout: 3_000 });
+      return text?.trim() ?? null;
+    } catch {
+      return null;
+    }
   }
 
   private async dismissConsentPopup(page: Page): Promise<void> {
