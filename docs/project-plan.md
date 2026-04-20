@@ -60,3 +60,9 @@ ScrapeRun records written on every execution
 Error alerting/retry logic
 Docker Compose for local full-stack run
 ---
+
+
+
+## To Dos:
+- create / source DB and document tables:
+    - Targets (symbol, name, exchange, last_scraped, active)
