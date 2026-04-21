@@ -9,9 +9,10 @@ import type { ScrapeResult } from "../types/index.js";
 export class YahooFinanceScraper {
   private browser: Browser | null = null;
   private context: BrowserContext | null = null;
+  private page: Page | null = null;
 
   async init(): Promise<void> {
-    this.browser = await chromium.launch({ headless: true });
+    this.browser = await chromium.launch({ headless: false });
     this.context = await this.browser.newContext({
       extraHTTPHeaders: {
         "Accept-Language": "en-US,en;q=0.9",
@@ -20,9 +21,9 @@ export class YahooFinanceScraper {
   }
 
   async scrape(ticker: string): Promise<void> {
-    // Each scrape gets a fresh page; cookies are shared across pages within the context,
-    // so the consent popup is only dismissed once per session.
-    const page = await this.newPage();
+    // Reuse the same page across scrapes — navigating in-place keeps the V8 bytecode
+    // and parsed resources in memory, avoiding the overhead of a new renderer context.
+    const page = await this.getPage();
 
     // Navigate to the stock's page on Yahoo Finance
     await page.goto(`https://finance.yahoo.com/quote/${ticker}`);
@@ -98,16 +99,21 @@ export class YahooFinanceScraper {
   }
 
   async close(): Promise<void> {
+    await this.page?.close();
     await this.context?.close();
     await this.browser?.close();
+    this.page = null;
     this.context = null;
     this.browser = null;
   }
 
-  protected async newPage(): Promise<Page> {
+  private async getPage(): Promise<Page> {
     if (!this.context) {
       throw new Error("Scraper not initialised — call init() first");
     }
-    return this.context.newPage();
+    if (!this.page) {
+      this.page = await this.context.newPage();
+    }
+    return this.page;
   }
 }

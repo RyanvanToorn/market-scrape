@@ -41,7 +41,7 @@ try {
     await scraper.init();
 
     let count = 0;
-    while (count < 15) {
+    while (true) {
         const symbol = allSymbols[count];
         if (!symbol) {
             console.warn(`No symbol found for line ${count + 2}, skipping.`);
