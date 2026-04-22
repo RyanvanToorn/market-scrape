@@ -1,8 +1,8 @@
 {
   "version": 2,
-  "dgSpecHash": "fSsKyeoGXUU=",
+  "dgSpecHash": "FbngsiBM3ug=",
   "success": true,
-  "projectFilePath": "E:\\Dev\\market-scrape\\src\\MarketScrape.Api\\MarketScrape.Api.csproj",
+  "projectFilePath": "E:\\Dev\\market-scrape\\api\\src\\MarketScrape.Api\\MarketScrape.Api.csproj",
   "expectedPackageFiles": [
     "C:\\Users\\Ryan\\.nuget\\packages\\humanizer.core\\2.14.1\\humanizer.core.2.14.1.nupkg.sha512",
     "C:\\Users\\Ryan\\.nuget\\packages\\microsoft.aspnetcore.openapi\\10.0.6\\microsoft.aspnetcore.openapi.10.0.6.nupkg.sha512",

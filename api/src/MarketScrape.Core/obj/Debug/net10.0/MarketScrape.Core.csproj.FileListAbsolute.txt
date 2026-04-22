@@ -10,3 +10,15 @@ E:\Dev\market-scrape\src\MarketScrape.Core\obj\Debug\net10.0\MarketScrape.Core.d
 E:\Dev\market-scrape\src\MarketScrape.Core\obj\Debug\net10.0\refint\MarketScrape.Core.dll
 E:\Dev\market-scrape\src\MarketScrape.Core\obj\Debug\net10.0\MarketScrape.Core.pdb
 E:\Dev\market-scrape\src\MarketScrape.Core\obj\Debug\net10.0\ref\MarketScrape.Core.dll
+E:\Dev\market-scrape\api\src\MarketScrape.Core\bin\Debug\net10.0\MarketScrape.Core.deps.json
+E:\Dev\market-scrape\api\src\MarketScrape.Core\bin\Debug\net10.0\MarketScrape.Core.dll
+E:\Dev\market-scrape\api\src\MarketScrape.Core\bin\Debug\net10.0\MarketScrape.Core.pdb
+E:\Dev\market-scrape\api\src\MarketScrape.Core\obj\Debug\net10.0\MarketScrape.Core.GeneratedMSBuildEditorConfig.editorconfig
+E:\Dev\market-scrape\api\src\MarketScrape.Core\obj\Debug\net10.0\MarketScrape.Core.AssemblyInfoInputs.cache
+E:\Dev\market-scrape\api\src\MarketScrape.Core\obj\Debug\net10.0\MarketScrape.Core.AssemblyInfo.cs
+E:\Dev\market-scrape\api\src\MarketScrape.Core\obj\Debug\net10.0\MarketScrape.Core.csproj.CoreCompileInputs.cache
+E:\Dev\market-scrape\api\src\MarketScrape.Core\obj\Debug\net10.0\MarketScrape.Core.sourcelink.json
+E:\Dev\market-scrape\api\src\MarketScrape.Core\obj\Debug\net10.0\MarketScrape.Core.dll
+E:\Dev\market-scrape\api\src\MarketScrape.Core\obj\Debug\net10.0\refint\MarketScrape.Core.dll
+E:\Dev\market-scrape\api\src\MarketScrape.Core\obj\Debug\net10.0\MarketScrape.Core.pdb
+E:\Dev\market-scrape\api\src\MarketScrape.Core\obj\Debug\net10.0\ref\MarketScrape.Core.dll

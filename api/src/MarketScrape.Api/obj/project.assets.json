@@ -2246,11 +2246,11 @@
   "project": {
     "version": "1.0.0",
     "restore": {
-      "projectUniqueName": "E:\\Dev\\market-scrape\\src\\MarketScrape.Api\\MarketScrape.Api.csproj",
+      "projectUniqueName": "E:\\Dev\\market-scrape\\api\\src\\MarketScrape.Api\\MarketScrape.Api.csproj",
       "projectName": "MarketScrape.Api",
-      "projectPath": "E:\\Dev\\market-scrape\\src\\MarketScrape.Api\\MarketScrape.Api.csproj",
+      "projectPath": "E:\\Dev\\market-scrape\\api\\src\\MarketScrape.Api\\MarketScrape.Api.csproj",
       "packagesPath": "C:\\Users\\Ryan\\.nuget\\packages\\",
-      "outputPath": "E:\\Dev\\market-scrape\\src\\MarketScrape.Api\\obj\\",
+      "outputPath": "E:\\Dev\\market-scrape\\api\\src\\MarketScrape.Api\\obj\\",
       "projectStyle": "PackageReference",
       "configFilePaths": [
         "C:\\Users\\Ryan\\AppData\\Roaming\\NuGet\\NuGet.Config"
@@ -2265,8 +2265,8 @@
         "net10.0": {
           "targetAlias": "net10.0",
           "projectReferences": {
-            "E:\\Dev\\market-scrape\\src\\MarketScrape.Infrastructure\\MarketScrape.Infrastructure.csproj": {
-              "projectPath": "E:\\Dev\\market-scrape\\src\\MarketScrape.Infrastructure\\MarketScrape.Infrastructure.csproj"
+            "E:\\Dev\\market-scrape\\api\\src\\MarketScrape.Infrastructure\\MarketScrape.Infrastructure.csproj": {
+              "projectPath": "E:\\Dev\\market-scrape\\api\\src\\MarketScrape.Infrastructure\\MarketScrape.Infrastructure.csproj"
             }
           }
         }

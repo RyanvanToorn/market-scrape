@@ -1,8 +1,8 @@
 {
   "version": 2,
-  "dgSpecHash": "5Eaxhfewq7o=",
+  "dgSpecHash": "/vnGs+z2kJw=",
   "success": true,
-  "projectFilePath": "E:\\Dev\\market-scrape\\src\\MarketScrape.Infrastructure\\MarketScrape.Infrastructure.csproj",
+  "projectFilePath": "E:\\Dev\\market-scrape\\api\\src\\MarketScrape.Infrastructure\\MarketScrape.Infrastructure.csproj",
   "expectedPackageFiles": [
     "C:\\Users\\Ryan\\.nuget\\packages\\microsoft.entityframeworkcore\\10.0.6\\microsoft.entityframeworkcore.10.0.6.nupkg.sha512",
     "C:\\Users\\Ryan\\.nuget\\packages\\microsoft.entityframeworkcore.abstractions\\10.0.6\\microsoft.entityframeworkcore.abstractions.10.0.6.nupkg.sha512",
