@@ -1,5 +1,3 @@
-using MarketScrape.Core.Entities;
-
 namespace MarketScrape.Core.Repositories;
 
 public interface IInstrumentTypeRepository
