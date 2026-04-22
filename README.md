@@ -26,11 +26,11 @@ Imports records from a `.txt` file into the database as `PotentialInstrument` ro
    ```
    npm run import:listings
    ```
-   By default this reads from `temp/Listings.txt`. To use a different file:
+   By default this reads from `temp/Listings.txt` (relative to the repo root). To use a different file:
    ```
    npm run import:listings -- path/to/your/file.txt
    ```
-   To target a different API URL (default is `http://localhost:5154`):
+   To target a different API URL (default is `http://localhost:5204`):
    ```
    API_BASE_URL=http://localhost:5000 npm run import:listings
    ```

@@ -19,7 +19,7 @@ public class PotentialInstrumentRepository(AppDbContext context) : IPotentialIns
         await context.SaveChangesAsync();
     }
 
-    public async Task AddRangeAsync(IEnumerable<PotentialInstrument> potentialInstruments)
+    public async Task AddRangeAsync(List<PotentialInstrument> potentialInstruments)
     {
         await context.PotentialInstruments.AddRangeAsync(potentialInstruments);
         await context.SaveChangesAsync();
@@ -31,7 +31,7 @@ public class PotentialInstrumentRepository(AppDbContext context) : IPotentialIns
         await context.SaveChangesAsync();
     }
 
-    public async Task UpdateRangeAsync(IEnumerable<PotentialInstrument> potentialInstruments)
+    public async Task UpdateRangeAsync(List<PotentialInstrument> potentialInstruments)
     {
         context.PotentialInstruments.UpdateRange(potentialInstruments);
         await context.SaveChangesAsync();
@@ -47,7 +47,7 @@ public class PotentialInstrumentRepository(AppDbContext context) : IPotentialIns
         }
     }
 
-    public async Task DeleteRangeAsync(IEnumerable<int> ids)
+    public async Task DeleteRangeAsync(List<int> ids)
     {
         var entities = await context.PotentialInstruments.Where(e => ids.Contains(e.Id)).ToListAsync();
         context.PotentialInstruments.RemoveRange(entities);

@@ -2,6 +2,7 @@ using MarketScrape.Core.Entities;
 using MarketScrape.Core.Repositories;
 using MarketScrape.Infrastructure.Data;
 using MarketScrape.Infrastructure.Repositories;
+using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 
 var builder = WebApplication.CreateBuilder(args);
@@ -45,7 +46,7 @@ app.MapPost("/instrument-types", async (InstrumentTypeRequest req, IInstrumentTy
     return Results.Created($"/instrument-types/{entity.Id}", entity);
 });
 
-app.MapPost("/instrument-types/batch", async (IEnumerable<InstrumentTypeRequest> reqs, IInstrumentTypeRepository repo) =>
+app.MapPost("/instrument-types/batch", async (List<InstrumentTypeRequest> reqs, IInstrumentTypeRepository repo) =>
 {
     var entities = reqs.Select(r => new InstrumentType
     {
@@ -69,7 +70,7 @@ app.MapPut("/instrument-types/{id}", async (int id, InstrumentTypeRequest req, I
     return Results.Ok(entity);
 });
 
-app.MapPut("/instrument-types/batch", async (IEnumerable<InstrumentTypeUpdateRequest> reqs, IInstrumentTypeRepository repo) =>
+app.MapPut("/instrument-types/batch", async (List<InstrumentTypeUpdateRequest> reqs, IInstrumentTypeRepository repo) =>
 {
     var updates = new List<InstrumentType>();
     foreach (var r in reqs)
@@ -93,7 +94,7 @@ app.MapDelete("/instrument-types/{id}", async (int id, IInstrumentTypeRepository
     return Results.NoContent();
 });
 
-app.MapDelete("/instrument-types/batch", async (IEnumerable<int> ids, IInstrumentTypeRepository repo) =>
+app.MapDelete("/instrument-types/batch", async ([FromBody] List<int> ids, IInstrumentTypeRepository repo) =>
 {
     await repo.DeleteRangeAsync(ids);
     return Results.NoContent();
@@ -123,7 +124,7 @@ app.MapPost("/instruments", async (InstrumentRequest req, IInstrumentRepository 
     return Results.Created($"/instruments/{entity.Id}", entity);
 });
 
-app.MapPost("/instruments/batch", async (IEnumerable<InstrumentRequest> reqs, IInstrumentRepository repo) =>
+app.MapPost("/instruments/batch", async (List<InstrumentRequest> reqs, IInstrumentRepository repo) =>
 {
     var entities = reqs.Select(r => new Instrument
     {
@@ -153,7 +154,7 @@ app.MapPut("/instruments/{id}", async (int id, InstrumentRequest req, IInstrumen
     return Results.Ok(entity);
 });
 
-app.MapPut("/instruments/batch", async (IEnumerable<InstrumentUpdateRequest> reqs, IInstrumentRepository repo) =>
+app.MapPut("/instruments/batch", async (List<InstrumentUpdateRequest> reqs, IInstrumentRepository repo) =>
 {
     var updates = new List<Instrument>();
     foreach (var r in reqs)
@@ -180,7 +181,7 @@ app.MapDelete("/instruments/{id}", async (int id, IInstrumentRepository repo) =>
     return Results.NoContent();
 });
 
-app.MapDelete("/instruments/batch", async (IEnumerable<int> ids, IInstrumentRepository repo) =>
+app.MapDelete("/instruments/batch", async ([FromBody] List<int> ids, IInstrumentRepository repo) =>
 {
     await repo.DeleteRangeAsync(ids);
     return Results.NoContent();
@@ -210,7 +211,7 @@ app.MapPost("/potential-instruments", async (InstrumentRequest req, IPotentialIn
     return Results.Created($"/potential-instruments/{entity.Id}", entity);
 });
 
-app.MapPost("/potential-instruments/batch", async (IEnumerable<InstrumentRequest> reqs, IPotentialInstrumentRepository repo) =>
+app.MapPost("/potential-instruments/batch", async (List<InstrumentRequest> reqs, IPotentialInstrumentRepository repo) =>
 {
     var entities = reqs.Select(r => new PotentialInstrument
     {
@@ -240,7 +241,7 @@ app.MapPut("/potential-instruments/{id}", async (int id, InstrumentRequest req, 
     return Results.Ok(entity);
 });
 
-app.MapPut("/potential-instruments/batch", async (IEnumerable<InstrumentUpdateRequest> reqs, IPotentialInstrumentRepository repo) =>
+app.MapPut("/potential-instruments/batch", async (List<InstrumentUpdateRequest> reqs, IPotentialInstrumentRepository repo) =>
 {
     var updates = new List<PotentialInstrument>();
     foreach (var r in reqs)
@@ -267,7 +268,7 @@ app.MapDelete("/potential-instruments/{id}", async (int id, IPotentialInstrument
     return Results.NoContent();
 });
 
-app.MapDelete("/potential-instruments/batch", async (IEnumerable<int> ids, IPotentialInstrumentRepository repo) =>
+app.MapDelete("/potential-instruments/batch", async ([FromBody] List<int> ids, IPotentialInstrumentRepository repo) =>
 {
     await repo.DeleteRangeAsync(ids);
     return Results.NoContent();
