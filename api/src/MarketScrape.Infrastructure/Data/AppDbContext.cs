@@ -58,6 +58,7 @@ public class AppDbContext(DbContextOptions<AppDbContext> options) : DbContext(op
             entity.Property(e => e.ModifiedOn).HasColumnName("modified_on");
             entity.Property(e => e.ModifiedBy).HasColumnName("modified_by");
             entity.Property(e => e.IsActive).HasColumnName("is_active");
+            entity.Property(e => e.Validated).HasColumnName("validated");
 
             entity.HasOne(e => e.InstrumentType)
                   .WithMany()

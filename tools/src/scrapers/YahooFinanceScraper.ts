@@ -1,6 +1,6 @@
 import type { Browser, BrowserContext, Locator, Page } from "@playwright/test";
 import { chromium } from "@playwright/test";
-import type { ScrapeResult } from "../types/index.js";
+import type { ScrapedStats } from "../types/index.js";
 
 /**
  * Scrapes market data for a given ticker from Yahoo Finance.
@@ -20,7 +20,7 @@ export class YahooFinanceScraper {
     });
   }
 
-  async scrape(ticker: string): Promise<void> {
+  async scrape(ticker: string): Promise<ScrapedStats> {
     // Reuse the same page across scrapes — navigating in-place keeps the V8 bytecode
     // and parsed resources in memory, avoiding the overhead of a new renderer context.
     const page = await this.getPage();
@@ -65,7 +65,7 @@ export class YahooFinanceScraper {
       oneYearTarget:        await this.getFinStreamer(quoteStatisticsContainer, "targetMeanPrice"),
     };
 
-    console.log(JSON.stringify(stats, null, 2));
+    return stats;
   }
 
   /** Reads the raw `data-value` from a `fin-streamer` element by its `data-field`. */

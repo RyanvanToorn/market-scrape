@@ -12,7 +12,8 @@ const _ticker = process.argv[2] ?? "AAPL";
 async function scrapeSymbol(scraper: YahooFinanceScraper, symbol: string): Promise<void> {
     try {
         console.log(`Scraping ${symbol}...`);
-        await scraper.scrape(symbol);
+        const stats = await scraper.scrape(symbol);
+        console.log(JSON.stringify(stats, null, 2));
     } catch (err) {
         console.log(`Skipping ${symbol}: ${err instanceof Error ? err.message : err}`);
     }

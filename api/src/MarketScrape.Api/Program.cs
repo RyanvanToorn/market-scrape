@@ -4,8 +4,14 @@ using MarketScrape.Infrastructure.Data;
 using MarketScrape.Infrastructure.Repositories;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
+using System.Text.Json.Serialization;
 
 var builder = WebApplication.CreateBuilder(args);
+
+builder.Services.AddOpenApi();
+
+builder.Services.ConfigureHttpJsonOptions(options =>
+    options.SerializerOptions.ReferenceHandler = ReferenceHandler.IgnoreCycles);
 
 builder.Services.AddOpenApi();
 
@@ -265,6 +271,17 @@ app.MapDelete("/potential-instruments/{id}", async (int id, IPotentialInstrument
     var entity = await repo.GetByIdAsync(id);
     if (entity is null) return Results.NotFound();
     await repo.DeleteAsync(id);
+    return Results.NoContent();
+});
+
+app.MapPatch("/potential-instruments/{id}/validate", async (int id, IPotentialInstrumentRepository repo) =>
+{
+    var entity = await repo.GetByIdAsync(id);
+    if (entity is null) return Results.NotFound();
+    entity.Validated = true;
+    entity.ModifiedOn = DateTime.UtcNow;
+    entity.ModifiedBy = "system";
+    await repo.UpdateAsync(entity);
     return Results.NoContent();
 });
 

@@ -12,6 +12,7 @@ public class PotentialInstrument
     public DateTime? ModifiedOn { get; set; }
     public string? ModifiedBy { get; set; }
     public bool IsActive { get; set; }
+    public bool Validated { get; set; }
 
     public InstrumentType InstrumentType { get; set; } = null!;
 }

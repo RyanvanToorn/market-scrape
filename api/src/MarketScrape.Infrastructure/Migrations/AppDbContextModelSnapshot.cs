@@ -167,6 +167,10 @@ namespace MarketScrape.Infrastructure.Migrations
                         .HasColumnType("integer")
                         .HasColumnName("type_id");
 
+                    b.Property<bool>("Validated")
+                        .HasColumnType("boolean")
+                        .HasColumnName("validated");
+
                     b.HasKey("Id");
 
                     b.HasIndex("TypeId");

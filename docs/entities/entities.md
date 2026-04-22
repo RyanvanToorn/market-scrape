@@ -32,4 +32,5 @@ Table potential_instruments {
   modified_on timestamp
   modified_by varchar
   is_active boolean
+  validated boolean [default: false, note: 'Set to true once the record has been processed by the promote-instruments job, regardless of outcome']
 }
