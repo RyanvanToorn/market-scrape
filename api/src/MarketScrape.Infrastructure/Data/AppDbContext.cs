@@ -7,6 +7,7 @@ public class AppDbContext(DbContextOptions<AppDbContext> options) : DbContext(op
 {
     public DbSet<InstrumentType> InstrumentTypes => Set<InstrumentType>();
     public DbSet<Instrument> Instruments => Set<Instrument>();
+    public DbSet<PotentialInstrument> PotentialInstruments => Set<PotentialInstrument>();
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
@@ -40,6 +41,26 @@ public class AppDbContext(DbContextOptions<AppDbContext> options) : DbContext(op
 
             entity.HasOne(e => e.InstrumentType)
                   .WithMany(t => t.Instruments)
+                  .HasForeignKey(e => e.TypeId);
+        });
+
+        modelBuilder.Entity<PotentialInstrument>(entity =>
+        {
+            entity.ToTable("potential_instruments");
+            entity.HasKey(e => e.Id);
+            entity.Property(e => e.Id).HasColumnName("id");
+            entity.Property(e => e.Symbol).HasColumnName("symbol");
+            entity.Property(e => e.Name).HasColumnName("name");
+            entity.Property(e => e.TypeId).HasColumnName("type_id");
+            entity.Property(e => e.Exchange).HasColumnName("exchange");
+            entity.Property(e => e.CreatedOn).HasColumnName("created_on");
+            entity.Property(e => e.CreatedBy).HasColumnName("created_by");
+            entity.Property(e => e.ModifiedOn).HasColumnName("modified_on");
+            entity.Property(e => e.ModifiedBy).HasColumnName("modified_by");
+            entity.Property(e => e.IsActive).HasColumnName("is_active");
+
+            entity.HasOne(e => e.InstrumentType)
+                  .WithMany()
                   .HasForeignKey(e => e.TypeId);
         });
     }

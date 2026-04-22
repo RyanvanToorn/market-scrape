@@ -118,10 +118,77 @@ namespace MarketScrape.Infrastructure.Migrations
                     b.ToTable("instrument_types", (string)null);
                 });
 
+            modelBuilder.Entity("MarketScrape.Core.Entities.PotentialInstrument", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("integer")
+                        .HasColumnName("id");
+
+                    NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<int>("Id"));
+
+                    b.Property<string>("CreatedBy")
+                        .IsRequired()
+                        .HasColumnType("text")
+                        .HasColumnName("created_by");
+
+                    b.Property<DateTime>("CreatedOn")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("created_on");
+
+                    b.Property<string>("Exchange")
+                        .IsRequired()
+                        .HasColumnType("text")
+                        .HasColumnName("exchange");
+
+                    b.Property<bool>("IsActive")
+                        .HasColumnType("boolean")
+                        .HasColumnName("is_active");
+
+                    b.Property<string>("ModifiedBy")
+                        .HasColumnType("text")
+                        .HasColumnName("modified_by");
+
+                    b.Property<DateTime?>("ModifiedOn")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("modified_on");
+
+                    b.Property<string>("Name")
+                        .IsRequired()
+                        .HasColumnType("text")
+                        .HasColumnName("name");
+
+                    b.Property<string>("Symbol")
+                        .IsRequired()
+                        .HasColumnType("text")
+                        .HasColumnName("symbol");
+
+                    b.Property<int>("TypeId")
+                        .HasColumnType("integer")
+                        .HasColumnName("type_id");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("TypeId");
+
+                    b.ToTable("potential_instruments", (string)null);
+                });
+
             modelBuilder.Entity("MarketScrape.Core.Entities.Instrument", b =>
                 {
                     b.HasOne("MarketScrape.Core.Entities.InstrumentType", "InstrumentType")
                         .WithMany("Instruments")
+                        .HasForeignKey("TypeId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("InstrumentType");
+                });
+
+            modelBuilder.Entity("MarketScrape.Core.Entities.PotentialInstrument", b =>
+                {
+                    b.HasOne("MarketScrape.Core.Entities.InstrumentType", "InstrumentType")
+                        .WithMany()
                         .HasForeignKey("TypeId")
                         .OnDelete(DeleteBehavior.Cascade)
                         .IsRequired();

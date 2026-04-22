@@ -14,6 +14,7 @@ builder.Services.AddDbContext<AppDbContext>(options =>
 
 builder.Services.AddScoped<IInstrumentTypeRepository, InstrumentTypeRepository>();
 builder.Services.AddScoped<IInstrumentRepository, InstrumentRepository>();
+builder.Services.AddScoped<IPotentialInstrumentRepository, PotentialInstrumentRepository>();
 
 var app = builder.Build();
 
