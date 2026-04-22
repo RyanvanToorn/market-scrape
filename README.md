@@ -1,82 +1,150 @@
-# READ ME
+# MarketScrape
 
-## Running the Scraper
-1. Navigate to the `tools/` directory.
-2. Install dependencies: `npm install`
-3. Run the scraper: `npm run dev:scraper`
-   - Executes the Playwright script and outputs structured JSON to the console.
-   - Accepts a ticker as an argument, e.g. `npm run dev:scraper -- AAPL`
+## Quick Start
 
-## Running the Listings Importer
-Imports records from a `.txt` file into the database as `PotentialInstrument` rows via the API.
+Run these steps in order from the repo root to get everything running from scratch.
 
-**Prerequisites:**
-- The API must be running (see [Running the API](#running-the-api) below).
-- At least one `InstrumentType` must exist in the database. Create one via:
-  ```
-  POST /instrument-types
-  { "description": "ETF" }
-  ```
-  Repeat for any other asset types present in your listings file (e.g. `Stock`).
-
-**Steps:**
-1. Navigate to the `tools/` directory.
-2. Install dependencies if not already done: `npm install`
-3. Run the importer:
-   ```
-   npm run import:listings
-   ```
-   By default this reads from `temp/Listings.txt` (relative to the repo root). To use a different file:
-   ```
-   npm run import:listings -- path/to/your/file.txt
-   ```
-   To target a different API URL (default is `http://localhost:5204`):
-   ```
-   API_BASE_URL=http://localhost:5000 npm run import:listings
-   ```
-
-**Output:** The importer logs progress per batch of 100 records. Rows with an unrecognised asset type are skipped with a warning — add the missing `InstrumentType` via the API and re-run.
-
-## Running the API
-1. Ensure the database container is running (see DB section below).
-2. Navigate to the `api/` directory.
-3. Run the API:
-   ```
-   dotnet run --project src/MarketScrape.Api
-   ```
-4. The API will be available at:
-   - http://localhost:5204
-   - https://localhost:7004
-
-## DB
-
-### Starting the Database
-Start the PostgreSQL container (Docker Desktop must be running):
-```
+### 1. Start the database
+```powershell
 docker run --name marketscrape-db -e POSTGRES_USER=marketscrape -e POSTGRES_PASSWORD=marketscrape -e POSTGRES_DB=marketscrape -p 5432:5432 -d postgres:17
 ```
+> If the container already exists but is stopped: `docker start marketscrape-db`
 
-If the container already exists but is stopped:
+**Verify:** `docker ps --filter name=marketscrape-db`
+
+### 2. Apply database migrations
+```powershell
+cd api
+dotnet ef database update -p src/MarketScrape.Infrastructure -s src/MarketScrape.Api
 ```
+
+**Verify:** `docker exec -it marketscrape-db psql -U marketscrape -d marketscrape -c "\dt"`
+
+### 3. Start the API
+```powershell
+cd api
+dotnet run --project src/MarketScrape.Api --launch-profile http
+```
+API will be available at `http://localhost:5204`.
+
+**Verify:** `curl http://localhost:5204/instrument-types`
+
+### 4. Install tool dependencies
+```powershell
+cd tools
+npm install
+```
+
+### 5. Run the listings importer
+```powershell
+cd tools
+npm run import:listings
+```
+Reads `temp/Listings.txt`, auto-creates `Equities`, `ETF`, and `Stock` instrument types if missing, then bulk-inserts all records as `PotentialInstrument` rows in batches of 100.
+
+**Verify:** `docker exec -it marketscrape-db psql -U marketscrape -d marketscrape -c "SELECT COUNT(*) FROM potential_instruments;"`
+
+---
+
+## API
+
+Base URL: `http://localhost:5204`
+
+### Endpoints
+
+All three entities (`instrument-types`, `instruments`, `potential-instruments`) expose the same set of operations:
+
+| Method | Route | Description |
+|--------|-------|-------------|
+| `GET` | `/{entity}` | Get all records |
+| `GET` | `/{entity}/{id}` | Get single record (404 if not found) |
+| `POST` | `/{entity}` | Create single record |
+| `POST` | `/{entity}/batch` | Create multiple records |
+| `PUT` | `/{entity}/{id}` | Update single record (404 if not found) |
+| `PUT` | `/{entity}/batch` | Update multiple records |
+| `DELETE` | `/{entity}/{id}` | Delete single record (404 if not found) |
+| `DELETE` | `/{entity}/batch` | Delete multiple records (body: `[1, 2, 3]`) |
+
+**`InstrumentType` body:** `{ "description": "Stock" }`
+
+**`Instrument` / `PotentialInstrument` body:** `{ "symbol": "AAPL", "name": "Apple Inc", "typeId": 1, "exchange": "NASDAQ" }`
+
+### Starting the API
+```powershell
+cd api
+dotnet run --project src/MarketScrape.Api --launch-profile http
+```
+
+---
+
+## Listings Importer
+
+Reads a `.txt` file line-by-line and bulk-inserts records as `PotentialInstrument` rows via the API.
+
+```powershell
+cd tools
+npm run import:listings
+```
+
+Options:
+```powershell
+# Custom file path
+npm run import:listings -- path/to/file.txt
+
+# Custom API URL (default: http://localhost:5204)
+$env:API_BASE_URL="http://localhost:5000"; npm run import:listings
+```
+
+The importer automatically creates `Equities`, `ETF`, and `Stock` instrument types if they don't already exist. Records with unrecognised asset types are skipped with a warning.
+
+---
+
+## Scraper
+
+```powershell
+cd tools
+npm run dev:scraper
+```
+
+Runs the Playwright-based Yahoo Finance scraper and outputs structured JSON to the console.
+
+---
+
+## Database
+
+### Starting
+```powershell
+# First time
+docker run --name marketscrape-db -e POSTGRES_USER=marketscrape -e POSTGRES_PASSWORD=marketscrape -e POSTGRES_DB=marketscrape -p 5432:5432 -d postgres:17
+
+# Subsequent starts
 docker start marketscrape-db
+```
+
+### Querying
+```powershell
+docker exec -it marketscrape-db psql -U marketscrape -d marketscrape
+```
+Useful commands inside `psql`: `\dt` (list tables), `\d "table_name"` (describe table), `\q` (quit).
+
+Or run a one-liner:
+```powershell
+docker exec -it marketscrape-db psql -U marketscrape -d marketscrape -c "SELECT COUNT(*) FROM potential_instruments;"
 ```
 
 ### Migrations
 
-#### Apply existing migrations
-1. Navigate to the `api/` directory.
-2. Run:
-   ```
-   dotnet ef database update -p src/MarketScrape.Infrastructure -s src/MarketScrape.Api
-   ```
+Apply existing migrations:
+```powershell
+cd api
+dotnet ef database update -p src/MarketScrape.Infrastructure -s src/MarketScrape.Api
+```
 
-#### Add a new migration
-1. Navigate to the `api/` directory.
-2. Generate the migration:
-   ```
-   dotnet ef migrations add <MigrationName> -p src/MarketScrape.Infrastructure -s src/MarketScrape.Api
-   ```
-3. Apply it:
-   ```
+Add a new migration:
+```powershell
+cd api
+dotnet ef migrations add <MigrationName> -p src/MarketScrape.Infrastructure -s src/MarketScrape.Api
+dotnet ef database update -p src/MarketScrape.Infrastructure -s src/MarketScrape.Api
+```
    dotnet ef database update -p src/MarketScrape.Infrastructure -s src/MarketScrape.Api
    ```

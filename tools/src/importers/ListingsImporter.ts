@@ -27,7 +27,8 @@ async function ensureInstrumentType(description: string, apiBaseUrl: string, typ
   return created.id;
 }
 
-export async function importListings(filePath: string, apiBaseUrl: string): Promise<void> {
+/** Deprecated function used for the initial importing of potential instruments in txt format */
+export async function _importListings(filePath: string, apiBaseUrl: string): Promise<void> {
   // Fetch existing instrument types and build a lookup map
   const typesRes = await fetch(`${apiBaseUrl}/instrument-types`);
   if (!typesRes.ok) throw new Error(`Failed to fetch instrument types: ${typesRes.status}`);
