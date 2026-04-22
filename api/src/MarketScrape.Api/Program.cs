@@ -1,8 +1,19 @@
+using MarketScrape.Core.Repositories;
+using MarketScrape.Infrastructure.Data;
+using MarketScrape.Infrastructure.Repositories;
+using Microsoft.EntityFrameworkCore;
+
 var builder = WebApplication.CreateBuilder(args);
 
 // Add services to the container.
 // Learn more about configuring OpenAPI at https://aka.ms/aspnet/openapi
 builder.Services.AddOpenApi();
+
+builder.Services.AddDbContext<AppDbContext>(options =>
+    options.UseNpgsql(builder.Configuration.GetConnectionString("DefaultConnection")));
+
+builder.Services.AddScoped<IInstrumentTypeRepository, InstrumentTypeRepository>();
+builder.Services.AddScoped<IInstrumentRepository, InstrumentRepository>();
 
 var app = builder.Build();
 
@@ -13,6 +24,12 @@ if (app.Environment.IsDevelopment())
 }
 
 app.UseHttpsRedirection();
+
+app.MapGet("/instrument-types", async (IInstrumentTypeRepository repo) =>
+    await repo.GetAllAsync());
+
+app.MapGet("/instruments", async (IInstrumentRepository repo) =>
+    await repo.GetAllAsync());
 
 var summaries = new[]
 {

@@ -13,7 +13,7 @@ using System.Reflection;
 [assembly: System.Reflection.AssemblyCompanyAttribute("MarketScrape.Api")]
 [assembly: System.Reflection.AssemblyConfigurationAttribute("Debug")]
 [assembly: System.Reflection.AssemblyFileVersionAttribute("1.0.0.0")]
-[assembly: System.Reflection.AssemblyInformationalVersionAttribute("1.0.0+7251342c704a3d90cdc62a1ed5e4bd519c56bd20")]
+[assembly: System.Reflection.AssemblyInformationalVersionAttribute("1.0.0+b38ea6fb1b1c0c97740bf89887cff37a8dc8672f")]
 [assembly: System.Reflection.AssemblyProductAttribute("MarketScrape.Api")]
 [assembly: System.Reflection.AssemblyTitleAttribute("MarketScrape.Api")]
 [assembly: System.Reflection.AssemblyVersionAttribute("1.0.0.0")]
