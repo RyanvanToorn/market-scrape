@@ -1,11 +1,41 @@
 # READ ME
 
-## Running Scraper
-1. Navigate to the `scraper/` directory.
-2. Install dependencies: `npm install`  
-3. Run the scraper: `npm run dev:scraper`  
-   - This will execute the Playwright script and output structured JSON to the console.
+## Running the Scraper
+1. Navigate to the `tools/` directory.
+2. Install dependencies: `npm install`
+3. Run the scraper: `npm run dev:scraper`
+   - Executes the Playwright script and outputs structured JSON to the console.
    - Accepts a ticker as an argument, e.g. `npm run dev:scraper -- AAPL`
+
+## Running the Listings Importer
+Imports records from a `.txt` file into the database as `PotentialInstrument` rows via the API.
+
+**Prerequisites:**
+- The API must be running (see [Running the API](#running-the-api) below).
+- At least one `InstrumentType` must exist in the database. Create one via:
+  ```
+  POST /instrument-types
+  { "description": "ETF" }
+  ```
+  Repeat for any other asset types present in your listings file (e.g. `Stock`).
+
+**Steps:**
+1. Navigate to the `tools/` directory.
+2. Install dependencies if not already done: `npm install`
+3. Run the importer:
+   ```
+   npm run import:listings
+   ```
+   By default this reads from `temp/Listings.txt`. To use a different file:
+   ```
+   npm run import:listings -- path/to/your/file.txt
+   ```
+   To target a different API URL (default is `http://localhost:5154`):
+   ```
+   API_BASE_URL=http://localhost:5000 npm run import:listings
+   ```
+
+**Output:** The importer logs progress per batch of 100 records. Rows with an unrecognised asset type are skipped with a warning — add the missing `InstrumentType` via the API and re-run.
 
 ## Running the API
 1. Ensure the database container is running (see DB section below).

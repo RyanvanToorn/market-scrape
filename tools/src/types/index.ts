@@ -28,3 +28,18 @@ export interface ScrapeResult {
   history: PriceSnapshot[];
   scrapedAt: string; // ISO 8601 UTC
 }
+
+// ── API types ──────────────────────────────────────────────────────────────
+
+export interface InstrumentType {
+  id: number;
+  description: string;
+  isActive: boolean;
+}
+
+export interface InstrumentPayload {
+  symbol: string;
+  name: string;
+  typeId: number;
+  exchange: string;
+}

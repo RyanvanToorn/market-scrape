@@ -19,6 +19,24 @@ public class InstrumentTypeRepository(AppDbContext context) : IInstrumentTypeRep
         await context.SaveChangesAsync();
     }
 
+    public async Task AddRangeAsync(IEnumerable<InstrumentType> instrumentTypes)
+    {
+        await context.InstrumentTypes.AddRangeAsync(instrumentTypes);
+        await context.SaveChangesAsync();
+    }
+
+    public async Task UpdateAsync(InstrumentType instrumentType)
+    {
+        context.InstrumentTypes.Update(instrumentType);
+        await context.SaveChangesAsync();
+    }
+
+    public async Task UpdateRangeAsync(IEnumerable<InstrumentType> instrumentTypes)
+    {
+        context.InstrumentTypes.UpdateRange(instrumentTypes);
+        await context.SaveChangesAsync();
+    }
+
     public async Task DeleteAsync(int id)
     {
         var entity = await context.InstrumentTypes.FindAsync(id);
@@ -27,5 +45,12 @@ public class InstrumentTypeRepository(AppDbContext context) : IInstrumentTypeRep
             context.InstrumentTypes.Remove(entity);
             await context.SaveChangesAsync();
         }
+    }
+
+    public async Task DeleteRangeAsync(IEnumerable<int> ids)
+    {
+        var entities = await context.InstrumentTypes.Where(e => ids.Contains(e.Id)).ToListAsync();
+        context.InstrumentTypes.RemoveRange(entities);
+        await context.SaveChangesAsync();
     }
 }

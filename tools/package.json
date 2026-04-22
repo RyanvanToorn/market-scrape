@@ -10,6 +10,7 @@
     "lint": "eslint src tests",
     "lint:fix": "eslint src tests --fix",
     "dev:scraper": "tsx src/dev.ts",
+    "import:listings": "tsx src/import.ts",
     "test": "playwright test",
     "test:ui": "playwright test --ui",
     "test:debug": "playwright test --debug"
