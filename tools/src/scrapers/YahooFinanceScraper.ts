@@ -11,8 +11,8 @@ export class YahooFinanceScraper {
   private context: BrowserContext | null = null;
   private page: Page | null = null;
 
-  async init(): Promise<void> {
-    this.browser = await chromium.launch({ headless: false });
+  async init(headless = true): Promise<void> {
+    this.browser = await chromium.launch({ headless });
     this.context = await this.browser.newContext({
       extraHTTPHeaders: {
         "Accept-Language": "en-US,en;q=0.9",

@@ -13,10 +13,17 @@ const DRY_RUN = false;
 
 /**
  * Number of parallel scraper workers. Each worker runs its own Chromium instance.
- * Override at runtime via argument: npm run promote:instruments -- 3
+ * Override at runtime via argument: npm run promote:instruments -- <workers> [--headed]
  * Or via env var:                  WORKERS=3 npm run promote:instruments
  */
 const WORKERS = Math.max(1, parseInt(process.argv[2] ?? process.env['WORKERS'] ?? '3', 10));
+
+/**
+ * Whether Playwright runs in headless mode. Defaults to true.
+ * Pass --headed as the second argument to show the browser:
+ *   npm run promote:instruments -- 3 --headed
+ */
+const HEADLESS = !process.argv.includes('--headed');
 
 const API_BASE_URL = process.env['API_BASE_URL'] ?? 'http://localhost:5204';
 
@@ -102,7 +109,7 @@ async function runWorker(
     const scraper = new YahooFinanceScraper();
     try {
         console.log(`[Worker ${workerId}] Starting — ${chunk.length} instruments assigned`);
-        await scraper.init();
+        await scraper.init(HEADLESS);
 
         for (const potential of chunk) {
             console.log(`[Worker ${workerId}] ${potential.symbol} (${potential.exchange})`);
@@ -160,7 +167,7 @@ async function runWorker(
 
 // ── Main ──────────────────────────────────────────────────────────────────────
 
-console.log(`=== Promote Instruments (DRY_RUN=${DRY_RUN}, WORKERS=${WORKERS}) ===\n`);
+console.log(`=== Promote Instruments (DRY_RUN=${DRY_RUN}, WORKERS=${WORKERS}, HEADLESS=${HEADLESS}) ===\n`);
 
 const [potentials, existing] = await Promise.all([
     fetchPotentialInstruments(),
