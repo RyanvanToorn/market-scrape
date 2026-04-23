@@ -69,8 +69,13 @@ export class YahooFinanceScraper {
     // Scrape graph data by intercepting the chart API response.
     // The listener MUST be registered before the click — Promise.all ensures this.
     const chartContainer = page.locator('[data-testid="chart-container"]');
+    await chartContainer.waitFor({ state: "visible", timeout: 10_000 });
+
     const chartControlsContainer = chartContainer.locator('[data-testid="tabs-container"]');
+    await chartControlsContainer.waitFor({ state: "visible", timeout: 5_000 });
+
     const allButton = chartControlsContainer.locator('button[role="tab"][id="tab-Max"]');
+    await allButton.waitFor({ state: "visible", timeout: 5_000 });
 
     const [chartResponse] = await Promise.all([
       page.waitForResponse(
