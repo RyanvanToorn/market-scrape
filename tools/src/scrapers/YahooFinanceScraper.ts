@@ -66,14 +66,18 @@ export class YahooFinanceScraper {
       oneYearTarget:        await this.getFinStreamer(quoteStatisticsContainer, "targetMeanPrice"),
     };
 
-    // Fetch both daily (1Y) and weekly (5Y) chart data from the Yahoo Finance chart API.
-    // The browser context is reused so session cookies from the page load are carried over.
-    const [daily, weekly] = await Promise.all([
-      this.scrapeChartData(ticker, "1d", page),
-      this.scrapeChartData(ticker, "1wk", page),
-    ]);
+    // Fetch daily (1Y) then weekly (5Y) chart data sequentially with a random delay
+    // between requests to avoid appearing as an automated scraper.
+    const daily = await this.scrapeChartData(ticker, "1d", page);
+    await this.randomDelay(500, 1500);
+    const weekly = await this.scrapeChartData(ticker, "1wk", page);
 
     return { stats, daily, weekly };
+  }
+
+  private randomDelay(minMs: number, maxMs: number): Promise<void> {
+    const ms = Math.floor(Math.random() * (maxMs - minMs + 1)) + minMs;
+    return new Promise(resolve => setTimeout(resolve, ms));
   }
 
   /**

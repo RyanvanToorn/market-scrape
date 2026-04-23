@@ -27,7 +27,7 @@ const HEADLESS = !process.argv.includes('--headed');
 
 const API_BASE_URL = process.env['API_BASE_URL'] ?? 'http://localhost:5204';
 
-import type { ScrapedStats, ScrapeResult, PotentialInstrumentRecord, InstrumentRecord, InstrumentPayload } from './types/index.js';
+import type { ScrapedStats, ScrapeResult, ChartData, PotentialInstrumentRecord, InstrumentRecord, InstrumentPayload } from './types/index.js';
 import { YahooFinanceScraper } from './scrapers/YahooFinanceScraper.js';
 
 // ── Helpers ──────────────────────────────────────────────────────────────────
@@ -64,19 +64,70 @@ async function fetchInstruments(): Promise<InstrumentRecord[]> {
     return res.json() as Promise<InstrumentRecord[]>;
 }
 
-async function createInstrument(payload: InstrumentPayload): Promise<boolean> {
+async function createInstrument(payload: InstrumentPayload): Promise<number | null> {
     if (DRY_RUN) {
         console.log(`  [DRY RUN] Would POST /instruments { symbol: ${payload.symbol}, exchange: ${payload.exchange} }`);
-        return true;
+        return -1; // sentinel so callers know to proceed in dry-run mode
     }
     const res = await fetch(`${API_BASE_URL}/instruments`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(payload),
     });
-    if (res.status === 201) return true;
+    if (res.status === 201) {
+        const instrument = await res.json() as InstrumentRecord;
+        return instrument.id;
+    }
     console.warn(`  POST /instruments returned ${res.status} for ${payload.symbol}`);
-    return false;
+    return null;
+}
+
+async function storePriceHistory(instrumentId: number, daily: ChartData, weekly: ChartData): Promise<void> {
+    const allPoints = [...daily.pricePoints, ...weekly.pricePoints];
+    if (allPoints.length === 0) return;
+
+    if (DRY_RUN) {
+        console.log(`  [DRY RUN] Would POST ${allPoints.length} price history records for instrument ${instrumentId}`);
+        return;
+    }
+    const res = await fetch(`${API_BASE_URL}/instruments/${instrumentId}/price-history/batch`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(allPoints),
+    });
+    if (!res.ok) {
+        console.warn(`  POST /instruments/${instrumentId}/price-history/batch returned ${res.status}`);
+        return;
+    }
+    const result = await res.json() as { inserted: number };
+    console.log(`  Stored ${result.inserted}/${allPoints.length} price history records.`);
+}
+
+async function storeDividends(instrumentId: number, daily: ChartData, weekly: ChartData): Promise<void> {
+    // Deduplicate dividends across both intervals by ex-date (weekly 5Y has more history)
+    const seen = new Set<string>();
+    const allDividends = [...daily.dividends, ...weekly.dividends].filter(d => {
+        if (seen.has(d.exDate)) return false;
+        seen.add(d.exDate);
+        return true;
+    });
+    if (allDividends.length === 0) return;
+
+    if (DRY_RUN) {
+        console.log(`  [DRY RUN] Would POST ${allDividends.length} dividend records for instrument ${instrumentId}`);
+        return;
+    }
+    const res = await fetch(`${API_BASE_URL}/instruments/${instrumentId}/dividends/batch`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(allDividends),
+    });
+    if (!res.ok) {
+        console.warn(`  POST /instruments/${instrumentId}/dividends/batch returned ${res.status}`);
+        return;
+    }
+    const result = await res.json() as { inserted: number };
+    console.log(`  Stored ${result.inserted}/${allDividends.length} dividend records.`);
 }
 
 async function markValidated(id: number, symbol: string): Promise<void> {
@@ -115,6 +166,7 @@ async function runWorker(
     workerId: number,
     chunk: PotentialInstrumentRecord[],
     existingKeys: Set<string>,
+    existingIdMap: Map<string, number>,
     counters: Counters,
 ): Promise<void> {
     if (chunk.length === 0) return;
@@ -154,7 +206,12 @@ async function runWorker(
                 const key = dupeKey(potential.symbol, potential.exchange);
 
                 if (existingKeys.has(key)) {
-                    console.log(`[Worker ${workerId}]   Duplicate — already in instruments. Marking validated.`);
+                    console.log(`[Worker ${workerId}]   Duplicate — already in instruments. Updating price history.`);
+                    const existingId = existingIdMap.get(key);
+                    if (existingId !== undefined && scrapeResult) {
+                        await storePriceHistory(existingId, scrapeResult.daily, scrapeResult.weekly);
+                        await storeDividends(existingId, scrapeResult.daily, scrapeResult.weekly);
+                    }
                     await markValidated(potential.id, potential.symbol);
                     counters.skippedDupe++;
                 } else {
@@ -168,8 +225,12 @@ async function runWorker(
                         exchange: potential.exchange,
                         currency: scrapeResult?.daily.currency ?? scrapeResult?.weekly.currency ?? "",
                     };
-                    const created = await createInstrument(payload);
-                    if (created) {
+                    const instrumentId = await createInstrument(payload);
+                    if (instrumentId !== null) {
+                        if (scrapeResult && instrumentId > 0) {
+                            await storePriceHistory(instrumentId, scrapeResult.daily, scrapeResult.weekly);
+                            await storeDividends(instrumentId, scrapeResult.daily, scrapeResult.weekly);
+                        }
                         await markValidated(potential.id, potential.symbol);
                         counters.promoted++;
                     }
@@ -205,6 +266,7 @@ if (unvalidated.length === 0) {
 }
 
 const existingKeys = new Set<string>(existing.map(i => dupeKey(i.symbol, i.exchange)));
+const existingIdMap = new Map<string, number>(existing.map(i => [dupeKey(i.symbol, i.exchange), i.id]));
 
 const counters: Counters = { promoted: 0, skippedDupe: 0, failed: 0 };
 
@@ -214,7 +276,7 @@ const chunks = partition(unvalidated, workerCount);
 console.log(`\nSpinning up ${workerCount} worker(s)...\n`);
 
 await Promise.all(
-    chunks.map((chunk, i) => runWorker(i + 1, chunk, existingKeys, counters))
+    chunks.map((chunk, i) => runWorker(i + 1, chunk, existingKeys, existingIdMap, counters))
 );
 
 const totalProcessed = counters.promoted + counters.skippedDupe + counters.failed;

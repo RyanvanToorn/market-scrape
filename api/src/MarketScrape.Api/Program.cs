@@ -21,6 +21,8 @@ builder.Services.AddDbContext<AppDbContext>(options =>
 builder.Services.AddScoped<IInstrumentTypeRepository, InstrumentTypeRepository>();
 builder.Services.AddScoped<IInstrumentRepository, InstrumentRepository>();
 builder.Services.AddScoped<IPotentialInstrumentRepository, PotentialInstrumentRepository>();
+builder.Services.AddScoped<IInstrumentPriceHistoryRepository, InstrumentPriceHistoryRepository>();
+builder.Services.AddScoped<IInstrumentDividendRepository, InstrumentDividendRepository>();
 
 var app = builder.Build();
 
@@ -114,7 +116,7 @@ app.MapGet("/instruments", async (IInstrumentRepository repo) =>
 app.MapGet("/instruments/{id}", async (int id, IInstrumentRepository repo) =>
     await repo.GetByIdAsync(id) is Instrument entity ? Results.Ok(entity) : Results.NotFound());
 
-app.MapPost("/instruments", async (InstrumentRequest req, IInstrumentRepository repo) =>
+app.MapPost("/instruments", async (InstrumentCreateRequest req, IInstrumentRepository repo) =>
 {
     var entity = new Instrument
     {
@@ -122,6 +124,7 @@ app.MapPost("/instruments", async (InstrumentRequest req, IInstrumentRepository 
         Name = req.Name,
         TypeId = req.TypeId,
         Exchange = req.Exchange,
+        Currency = req.Currency ?? string.Empty,
         CreatedOn = DateTime.UtcNow,
         CreatedBy = "system",
         IsActive = true
@@ -130,7 +133,7 @@ app.MapPost("/instruments", async (InstrumentRequest req, IInstrumentRepository 
     return Results.Created($"/instruments/{entity.Id}", entity);
 });
 
-app.MapPost("/instruments/batch", async (List<InstrumentRequest> reqs, IInstrumentRepository repo) =>
+app.MapPost("/instruments/batch", async (List<InstrumentCreateRequest> reqs, IInstrumentRepository repo) =>
 {
     var entities = reqs.Select(r => new Instrument
     {
@@ -138,6 +141,7 @@ app.MapPost("/instruments/batch", async (List<InstrumentRequest> reqs, IInstrume
         Name = r.Name,
         TypeId = r.TypeId,
         Exchange = r.Exchange,
+        Currency = r.Currency ?? string.Empty,
         CreatedOn = DateTime.UtcNow,
         CreatedBy = "system",
         IsActive = true
@@ -191,6 +195,67 @@ app.MapDelete("/instruments/batch", async ([FromBody] List<int> ids, IInstrument
 {
     await repo.DeleteRangeAsync(ids);
     return Results.NoContent();
+});
+
+// ── InstrumentPriceHistory ─────────────────────────────────────────────────
+
+app.MapGet("/instruments/{id}/price-history", async (int id, string? granularity, IInstrumentRepository instrumentRepo, IInstrumentPriceHistoryRepository priceRepo) =>
+{
+    if (await instrumentRepo.GetByIdAsync(id) is null) return Results.NotFound();
+    var records = await priceRepo.GetByInstrumentAsync(id, granularity);
+    return Results.Ok(records);
+});
+
+app.MapPost("/instruments/{id}/price-history/batch", async (int id, List<PriceHistoryRequest> reqs, IInstrumentRepository instrumentRepo, IInstrumentPriceHistoryRepository priceRepo) =>
+{
+    if (await instrumentRepo.GetByIdAsync(id) is null) return Results.NotFound();
+    if (reqs.Count == 0) return Results.Ok(new { inserted = 0 });
+
+    var records = reqs
+        .Where(r => DateOnly.TryParse(r.Date, out _) && !string.IsNullOrWhiteSpace(r.Granularity))
+        .Select(r => new InstrumentPriceHistory
+        {
+            InstrumentId = id,
+            Date        = DateOnly.Parse(r.Date),
+            Granularity = r.Granularity,
+            Open        = r.Open,
+            High        = r.High,
+            Low         = r.Low,
+            Close       = r.Close,
+            AdjClose    = r.AdjClose,
+            Volume      = r.Volume,
+        }).ToList();
+
+    var inserted = await priceRepo.UpsertRangeAsync(records);
+    return Results.Ok(new { inserted });
+});
+
+// ── InstrumentDividend ─────────────────────────────────────────────────────
+
+app.MapGet("/instruments/{id}/dividends", async (int id, IInstrumentRepository instrumentRepo, IInstrumentDividendRepository dividendRepo) =>
+{
+    if (await instrumentRepo.GetByIdAsync(id) is null) return Results.NotFound();
+    var records = await dividendRepo.GetByInstrumentAsync(id);
+    return Results.Ok(records);
+});
+
+app.MapPost("/instruments/{id}/dividends/batch", async (int id, List<DividendRequest> reqs, IInstrumentRepository instrumentRepo, IInstrumentDividendRepository dividendRepo) =>
+{
+    if (await instrumentRepo.GetByIdAsync(id) is null) return Results.NotFound();
+    if (reqs.Count == 0) return Results.Ok(new { inserted = 0 });
+
+    var records = reqs
+        .Where(r => DateOnly.TryParse(r.ExDate, out _) && DateOnly.TryParse(r.PaymentDate, out _))
+        .Select(r => new InstrumentDividend
+        {
+            InstrumentId = id,
+            ExDate       = DateOnly.Parse(r.ExDate),
+            PaymentDate  = DateOnly.Parse(r.PaymentDate),
+            Amount       = r.Amount,
+        }).ToList();
+
+    var inserted = await dividendRepo.UpsertRangeAsync(records);
+    return Results.Ok(new { inserted });
 });
 
 // ── PotentialInstrument ────────────────────────────────────────────────────
@@ -299,3 +364,6 @@ record InstrumentTypeRequest(string Description);
 record InstrumentTypeUpdateRequest(int Id, string Description);
 record InstrumentRequest(string Symbol, string Name, int TypeId, string Exchange);
 record InstrumentUpdateRequest(int Id, string Symbol, string Name, int TypeId, string Exchange);
+record InstrumentCreateRequest(string Symbol, string Name, int TypeId, string Exchange, string? Currency);
+record PriceHistoryRequest(string Date, string Granularity, decimal? Open, decimal? High, decimal? Low, decimal? Close, decimal? AdjClose, long? Volume);
+record DividendRequest(string ExDate, string PaymentDate, decimal Amount);

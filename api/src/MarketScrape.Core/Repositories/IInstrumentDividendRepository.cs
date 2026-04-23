@@ -5,5 +5,5 @@ namespace MarketScrape.Core.Repositories;
 public interface IInstrumentDividendRepository
 {
     Task<IEnumerable<InstrumentDividend>> GetByInstrumentAsync(int instrumentId);
-    Task UpsertRangeAsync(List<InstrumentDividend> records);
+    Task<int> UpsertRangeAsync(List<InstrumentDividend> records);
 }
