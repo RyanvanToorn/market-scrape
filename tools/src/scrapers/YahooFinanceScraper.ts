@@ -66,27 +66,15 @@ export class YahooFinanceScraper {
       oneYearTarget:        await this.getFinStreamer(quoteStatisticsContainer, "targetMeanPrice"),
     };
 
-    // Scrape graph data by intercepting the chart API response.
-    // The listener MUST be registered before the click — Promise.all ensures this.
-    const chartContainer = page.locator('[data-testid="chart-container"]');
-    await chartContainer.waitFor({ state: "visible", timeout: 10_000 });
-
-    const chartControlsContainer = chartContainer.locator('[data-testid="tabs-container"]');
-    await chartControlsContainer.waitFor({ state: "visible", timeout: 5_000 });
-
-    const allButton = chartControlsContainer.locator('button[role="tab"][id="tab-Max"]');
-    await allButton.waitFor({ state: "visible", timeout: 5_000 });
-
-    const [chartResponse] = await Promise.all([
-      page.waitForResponse(
-        res => res.url().includes('/v8/finance/chart/') && res.status() === 200,
-        { timeout: 15_000 },
-      ),
-      allButton.click(),
-    ]);
-
-    const chartData = await chartResponse.json() as unknown;
-    console.log(`Chart API URL: ${chartResponse.url()}`);
+    // Call the chart API directly through the browser context so that Yahoo Finance
+    // sees it as a normal browser request (session cookies from the page load are reused).
+    // This avoids the timing issues of intercepting a button-click-triggered response.
+    const chartApiUrl = `https://query1.finance.yahoo.com/v8/finance/chart/${ticker}?range=max&interval=1d&events=div%7Csplit%7Cearn&includePrePost=false`;
+    const chartApiResponse = await page.context().request.get(chartApiUrl);
+    if (!chartApiResponse.ok()) {
+      throw new Error(`Chart API request failed: ${chartApiResponse.status()} for ${ticker}`);
+    }
+    const chartData = await chartApiResponse.json() as unknown;
     console.log('Chart data:', JSON.stringify(chartData, null, 2));
 
     return stats;

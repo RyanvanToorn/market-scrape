@@ -42,6 +42,10 @@ public class AppDbContext(DbContextOptions<AppDbContext> options) : DbContext(op
             entity.HasOne(e => e.InstrumentType)
                   .WithMany(t => t.Instruments)
                   .HasForeignKey(e => e.TypeId);
+
+            entity.HasIndex(e => new { e.Symbol, e.Exchange })
+                  .IsUnique()
+                  .HasDatabaseName("IX_instruments_symbol_exchange");
         });
 
         modelBuilder.Entity<PotentialInstrument>(entity =>

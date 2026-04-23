@@ -90,6 +90,19 @@ async function markValidated(id: number, symbol: string): Promise<void> {
     }
 }
 
+// ── Shutdown handling ───────────────────────────────────────────────────────
+
+let isShuttingDown = false;
+
+process.on('SIGINT', () => {
+    if (!isShuttingDown) {
+        isShuttingDown = true;
+        console.log('\n[Shutdown] Ctrl+C received — finishing current item then stopping. Press again to force quit.');
+    } else {
+        process.exit(1);
+    }
+});
+
 // ── Worker ───────────────────────────────────────────────────────────────────
 
 interface Counters {
@@ -112,6 +125,11 @@ async function runWorker(
         await scraper.init(HEADLESS);
 
         for (const potential of chunk) {
+            if (isShuttingDown) {
+                console.log(`[Worker ${workerId}] Shutdown signal received — stopping without marking remaining items.`);
+                break;
+            }
+
             console.log(`[Worker ${workerId}] ${potential.symbol} (${potential.exchange})`);
 
             let scrapeSuccess = false;
