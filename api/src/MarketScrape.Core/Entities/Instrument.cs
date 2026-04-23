@@ -11,6 +11,7 @@ public class Instrument
     public string CreatedBy { get; set; } = string.Empty;
     public DateTime? ModifiedOn { get; set; }
     public string? ModifiedBy { get; set; }
+    public string Currency { get; set; } = string.Empty;
     public bool IsActive { get; set; }
 
     public InstrumentType InstrumentType { get; set; } = null!;

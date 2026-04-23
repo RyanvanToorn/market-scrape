@@ -27,7 +27,7 @@ const HEADLESS = !process.argv.includes('--headed');
 
 const API_BASE_URL = process.env['API_BASE_URL'] ?? 'http://localhost:5204';
 
-import type { ScrapedStats, PotentialInstrumentRecord, InstrumentRecord, InstrumentPayload } from './types/index.js';
+import type { ScrapedStats, ScrapeResult, PotentialInstrumentRecord, InstrumentRecord, InstrumentPayload } from './types/index.js';
 import { YahooFinanceScraper } from './scrapers/YahooFinanceScraper.js';
 
 // ── Helpers ──────────────────────────────────────────────────────────────────
@@ -134,10 +134,12 @@ async function runWorker(
 
             let scrapeSuccess = false;
 
+            let scrapeResult: ScrapeResult | null = null;
+
             try {
-                const stats = await scraper.scrape(potential.symbol);
-                scrapeSuccess = isSuccessfulScrape(stats);
-                const nonNull = Object.values(stats).filter(v => v !== null).length;
+                scrapeResult = await scraper.scrape(potential.symbol);
+                scrapeSuccess = isSuccessfulScrape(scrapeResult.stats);
+                const nonNull = Object.values(scrapeResult.stats).filter(v => v !== null).length;
 
                 if (scrapeSuccess) {
                     console.log(`[Worker ${workerId}]   Scrape OK (${nonNull}/16 metrics)`);
@@ -164,6 +166,7 @@ async function runWorker(
                         name: potential.name,
                         typeId: potential.typeId,
                         exchange: potential.exchange,
+                        currency: scrapeResult?.daily.currency ?? scrapeResult?.weekly.currency ?? "",
                     };
                     const created = await createInstrument(payload);
                     if (created) {

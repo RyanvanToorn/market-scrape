@@ -1,6 +1,6 @@
 import type { Browser, BrowserContext, Locator, Page } from "@playwright/test";
 import { chromium } from "@playwright/test";
-import type { ScrapedStats } from "../types/index.js";
+import type { ChartData, ChartDividend, ChartInterval, ChartPricePoint, ScrapedStats, ScrapeResult } from "../types/index.js";
 
 /**
  * Scrapes market data for a given ticker from Yahoo Finance.
@@ -20,7 +20,7 @@ export class YahooFinanceScraper {
     });
   }
 
-  async scrape(ticker: string): Promise<ScrapedStats> {
+  async scrape(ticker: string): Promise<ScrapeResult> {
     // Reuse the same page across scrapes — navigating in-place keeps the V8 bytecode
     // and parsed resources in memory, avoiding the overhead of a new renderer context.
     const page = await this.getPage();
@@ -66,20 +66,79 @@ export class YahooFinanceScraper {
       oneYearTarget:        await this.getFinStreamer(quoteStatisticsContainer, "targetMeanPrice"),
     };
 
-    // Call the chart API directly through the browser context so that Yahoo Finance
-    // sees it as a normal browser request (session cookies from the page load are reused).
-    // This avoids the timing issues of intercepting a button-click-triggered response.
-    const now = Math.floor(Date.now() / 1000);
-    const fiveYearsAgo = now - 5 * 365 * 24 * 60 * 60;
-    const chartApiUrl = `https://query2.finance.yahoo.com/v8/finance/chart/${ticker}?period1=${fiveYearsAgo}&period2=${now}&interval=1wk&includePrePost=true&events=div%7Csplit%7Cearn&lang=en-US&region=US&source=cosaic`;
-    const chartApiResponse = await page.context().request.get(chartApiUrl);
-    if (!chartApiResponse.ok()) {
-      throw new Error(`Chart API request failed: ${chartApiResponse.status()} for ${ticker}`);
-    }
-    const chartData = await chartApiResponse.json() as unknown;
-    console.log('Chart data:', JSON.stringify(chartData, null, 2));
+    // Fetch both daily (1Y) and weekly (5Y) chart data from the Yahoo Finance chart API.
+    // The browser context is reused so session cookies from the page load are carried over.
+    const [daily, weekly] = await Promise.all([
+      this.scrapeChartData(ticker, "1d", page),
+      this.scrapeChartData(ticker, "1wk", page),
+    ]);
 
-    return stats;
+    return { stats, daily, weekly };
+  }
+
+  /**
+   * Fetches and parses the Yahoo Finance chart API for the given ticker and interval.
+   * - interval "1d"  → looks back 1 year, returns one row per trading day
+   * - interval "1wk" → looks back 5 years, returns one row per calendar week
+   */
+  private async scrapeChartData(ticker: string, interval: ChartInterval, page: Page): Promise<ChartData> {
+    const now = Math.floor(Date.now() / 1000);
+    const lookbackSeconds = interval === "1d"
+      ? 365 * 24 * 60 * 60
+      : 5 * 365 * 24 * 60 * 60;
+    const period1 = now - lookbackSeconds;
+
+    const url = `https://query2.finance.yahoo.com/v8/finance/chart/${ticker}?period1=${period1}&period2=${now}&interval=${interval}&includePrePost=true&events=div%7Csplit%7Cearn&lang=en-US&region=US&source=cosaic`;
+    const response = await page.context().request.get(url);
+    if (!response.ok()) {
+      throw new Error(`Chart API request failed: ${response.status()} for ${ticker} (${interval})`);
+    }
+
+    const json = await response.json() as Record<string, unknown>;
+    const chart = json["chart"] as Record<string, unknown>;
+    const results = chart["result"] as Record<string, unknown>[] | null;
+    if (!results || results.length === 0) {
+      throw new Error(`No chart results returned for ${ticker} (${interval})`);
+    }
+
+    const result = results[0]!;
+    const meta = result["meta"] as Record<string, unknown>;
+    const timestamps = result["timestamp"] as number[];
+    const indicators = result["indicators"] as Record<string, unknown>;
+    const quoteArr = (indicators["quote"] as Record<string, unknown>[])[0]!;
+    const adjCloseArr = ((indicators["adjclose"] as Record<string, unknown>[])[0]?.["adjclose"] ?? []) as (number | null)[];
+
+    const opens   = quoteArr["open"]   as (number | null)[];
+    const highs   = quoteArr["high"]   as (number | null)[];
+    const lows    = quoteArr["low"]    as (number | null)[];
+    const closes  = quoteArr["close"]  as (number | null)[];
+    const volumes = quoteArr["volume"] as (number | null)[];
+
+    const pricePoints: ChartPricePoint[] = timestamps.map((ts, i) => ({
+      date: new Date(ts * 1000).toISOString().slice(0, 10),
+      granularity: interval,
+      open:     opens[i]     ?? null,
+      high:     highs[i]     ?? null,
+      low:      lows[i]      ?? null,
+      close:    closes[i]    ?? null,
+      adjClose: adjCloseArr[i] ?? null,
+      volume:   volumes[i]   ?? null,
+    }));
+
+    const rawDividends = ((result["events"] as Record<string, unknown> | undefined)?.["dividends"] ?? {}) as Record<string, { amount: number; date: number }>;
+    const dividends: ChartDividend[] = Object.values(rawDividends).map(d => ({
+      exDate:      new Date(d.date * 1000).toISOString().slice(0, 10),
+      paymentDate: new Date(d.date * 1000).toISOString().slice(0, 10),
+      amount:      d.amount,
+    }));
+
+    return {
+      symbol:      meta["symbol"] as string,
+      currency:    meta["currency"] as string,
+      granularity: interval,
+      pricePoints,
+      dividends,
+    };
   }
 
   /** Reads the raw `data-value` from a `fin-streamer` element by its `data-field`. */

@@ -1,5 +1,5 @@
 import { resolve } from 'path';
-import { importListings } from './importers/ListingsImporter.js';
+import { _importListings as importListings } from './importers/ListingsImporter.js';
 
 const filePath = process.argv[2]
   ? resolve(process.argv[2])
