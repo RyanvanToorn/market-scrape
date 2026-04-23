@@ -1,0 +1,28 @@
+{
+  "name": "market-scrape-scraper",
+  "version": "0.1.0",
+  "description": "Playwright-based scraper for MarketScrape",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "build": "tsc",
+    "build:watch": "tsc --watch",
+    "lint": "eslint src tests",
+    "lint:fix": "eslint src tests --fix",
+    "dev:scraper": "tsx src/dev.ts",
+    "import:listings": "tsx src/import.ts",
+    "promote:instruments": "tsx src/promote.ts",
+    "test": "playwright test",
+    "test:ui": "playwright test --ui",
+    "test:debug": "playwright test --debug"
+  },
+  "devDependencies": {
+    "@playwright/test": "^1.55.1",
+    "@types/node": "^25.6.0",
+    "@typescript-eslint/eslint-plugin": "8.32.0",
+    "@typescript-eslint/parser": "8.32.0",
+    "eslint": "^9.39.4",
+    "tsx": "^4.21.0",
+    "typescript": "5.8.3"
+  }
+}

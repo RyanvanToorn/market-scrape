@@ -1,0 +1,15 @@
+{
+    "version": "0.2.0",
+    "configurations": [
+        {
+            "name": "Debug dev.ts (scraper)",
+            "type": "node",
+            "request": "launch",
+            "runtimeExecutable": "${workspaceFolder}/scraper/node_modules/.bin/tsx",
+            "args": ["src/dev.ts", "BB"],
+            "cwd": "${workspaceFolder}/scraper",
+            "sourceMaps": true,
+            "skipFiles": ["<node_internals>/**"]
+        }
+    ]
+}
