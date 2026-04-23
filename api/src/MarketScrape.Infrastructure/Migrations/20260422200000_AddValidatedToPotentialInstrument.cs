@@ -5,6 +5,7 @@ using Microsoft.EntityFrameworkCore.Migrations;
 namespace MarketScrape.Infrastructure.Migrations
 {
     /// <inheritdoc />
+    [Migration("20260422200000_AddValidatedToPotentialInstrument")]
     public partial class AddValidatedToPotentialInstrument : Migration
     {
         /// <inheritdoc />
