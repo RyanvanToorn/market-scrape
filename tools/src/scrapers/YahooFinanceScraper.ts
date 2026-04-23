@@ -41,11 +41,12 @@ export class YahooFinanceScraper {
       throw new Error(`No results found for ticker: ${ticker}`);
     }
 
+    // Title and meta title
     const _title = await page.title();
     const _metaTitle = await page.locator('meta[name="title"]').getAttribute("content");
 
+    // Scrape stats from the quote statistics panel.
     await quoteStatisticsContainer.waitFor({ state: "visible" });
-
     const stats = {
       previousClose:        await this.getFinStreamer(quoteStatisticsContainer, "regularMarketPreviousClose"),
       open:                 await this.getFinStreamer(quoteStatisticsContainer, "regularMarketOpen"),
@@ -64,6 +65,24 @@ export class YahooFinanceScraper {
       exDividendDate:       await this.getLabelValue(quoteStatisticsContainer, "Ex-Dividend Date"),
       oneYearTarget:        await this.getFinStreamer(quoteStatisticsContainer, "targetMeanPrice"),
     };
+
+    // Scrape graph data by intercepting the chart API response.
+    // The listener MUST be registered before the click — Promise.all ensures this.
+    const chartContainer = page.locator('[data-testid="chart-container"]');
+    const chartControlsContainer = chartContainer.locator('[data-testid="tabs-container"]');
+    const allButton = chartControlsContainer.locator('button[role="tab"][id="tab-Max"]');
+
+    const [chartResponse] = await Promise.all([
+      page.waitForResponse(
+        res => res.url().includes('/v8/finance/chart/') && res.status() === 200,
+        { timeout: 15_000 },
+      ),
+      allButton.click(),
+    ]);
+
+    const chartData = await chartResponse.json() as unknown;
+    console.log(`Chart API URL: ${chartResponse.url()}`);
+    console.log('Chart data:', JSON.stringify(chartData, null, 2));
 
     return stats;
   }

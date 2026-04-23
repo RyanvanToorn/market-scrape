@@ -44,6 +44,15 @@ Reads `temp/Listings.txt`, auto-creates `Equities`, `ETF`, and `Stock` instrumen
 
 **Verify:** `docker exec -it marketscrape-db psql -U marketscrape -d marketscrape -c "SELECT COUNT(*) FROM potential_instruments;"`
 
+### 6. Promote potential instruments
+```powershell
+cd tools
+npm run promote:instruments
+```
+Validates each unvalidated `PotentialInstrument` via Yahoo Finance scrape. Successfully scraped instruments are created as `Instrument` records and marked validated. Runs 3 parallel Chromium workers by default.
+
+**Verify:** `docker exec -it marketscrape-db psql -U marketscrape -d marketscrape -c "SELECT COUNT(*) FROM instruments;"`
+
 ---
 
 ## API
@@ -96,6 +105,37 @@ $env:API_BASE_URL="http://localhost:5000"; npm run import:listings
 ```
 
 The importer automatically creates `Equities`, `ETF`, and `Stock` instrument types if they don't already exist. Records with unrecognised asset types are skipped with a warning.
+
+---
+
+## Promote Instruments
+
+Validates `PotentialInstrument` records against Yahoo Finance and promotes successful ones to the `Instrument` table.
+
+```powershell
+cd tools
+npm run promote:instruments
+```
+
+### Arguments
+
+| Argument | Default | Description |
+|----------|---------|-------------|
+| `<workers>` (positional) | `3` | Number of parallel Chromium workers. Can also be set via `$env:WORKERS`. |
+| `--headed` (flag) | headless | Pass to show the browser window during scraping. |
+
+```powershell
+# 5 parallel workers, headless
+npm run promote:instruments -- 5
+
+# 3 workers, show browser
+npm run promote:instruments -- 3 --headed
+
+# Via environment variable
+$env:WORKERS=5; npm run promote:instruments
+```
+
+> **DRY_RUN mode:** Set `DRY_RUN = true` at the top of `tools/src/promote.ts` to log all mutations without writing to the database.
 
 ---
 
