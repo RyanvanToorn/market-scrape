@@ -13,9 +13,10 @@ const DRY_RUN = false;
 
 /**
  * Number of parallel scraper workers. Each worker runs its own Chromium instance.
- * Override at runtime: WORKERS=3 npm run promote:instruments
+ * Override at runtime via argument: npm run promote:instruments -- 3
+ * Or via env var:                  WORKERS=3 npm run promote:instruments
  */
-const WORKERS = Math.max(1, parseInt(process.env['WORKERS'] ?? '5', 10));
+const WORKERS = Math.max(1, parseInt(process.argv[2] ?? process.env['WORKERS'] ?? '3', 10));
 
 const API_BASE_URL = process.env['API_BASE_URL'] ?? 'http://localhost:5204';
 
