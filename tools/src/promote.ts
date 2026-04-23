@@ -214,9 +214,13 @@ await Promise.all(
     chunks.map((chunk, i) => runWorker(i + 1, chunk, existingKeys, counters))
 );
 
+const totalProcessed = counters.promoted + counters.skippedDupe + counters.failed;
+const stoppedEarly = isShuttingDown || totalProcessed < unvalidated.length;
+
 console.log(`
 === Summary ===
-  Total processed : ${unvalidated.length}
+  Total queued    : ${unvalidated.length}
+  Total processed : ${totalProcessed}${stoppedEarly ? ' (stopped early)' : ''}
   Promoted        : ${counters.promoted}
   Skipped (dupe)  : ${counters.skippedDupe}
   Failed/removed  : ${counters.failed}

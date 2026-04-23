@@ -69,7 +69,9 @@ export class YahooFinanceScraper {
     // Call the chart API directly through the browser context so that Yahoo Finance
     // sees it as a normal browser request (session cookies from the page load are reused).
     // This avoids the timing issues of intercepting a button-click-triggered response.
-    const chartApiUrl = `https://query1.finance.yahoo.com/v8/finance/chart/${ticker}?range=max&interval=1d&events=div%7Csplit%7Cearn&includePrePost=false`;
+    const now = Math.floor(Date.now() / 1000);
+    const fiveYearsAgo = now - 5 * 365 * 24 * 60 * 60;
+    const chartApiUrl = `https://query2.finance.yahoo.com/v8/finance/chart/${ticker}?period1=${fiveYearsAgo}&period2=${now}&interval=1wk&includePrePost=true&events=div%7Csplit%7Cearn&lang=en-US&region=US&source=cosaic`;
     const chartApiResponse = await page.context().request.get(chartApiUrl);
     if (!chartApiResponse.ok()) {
       throw new Error(`Chart API request failed: ${chartApiResponse.status()} for ${ticker}`);

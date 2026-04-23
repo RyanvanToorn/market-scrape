@@ -1,7 +1,7 @@
 <Solution>
   <Folder Name="/src/">
-    <Project Path="src/MarketScrape.Api/MarketScrape.Api.csproj" />
-    <Project Path="src/MarketScrape.Core/MarketScrape.Core.csproj" />
-    <Project Path="src/MarketScrape.Infrastructure/MarketScrape.Infrastructure.csproj" />
+    <Project Path="api/src/MarketScrape.Api/MarketScrape.Api.csproj" />
+    <Project Path="api/src/MarketScrape.Core/MarketScrape.Core.csproj" />
+    <Project Path="api/src/MarketScrape.Infrastructure/MarketScrape.Infrastructure.csproj" />
   </Folder>
 </Solution>
