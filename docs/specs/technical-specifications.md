@@ -4,81 +4,138 @@
 
 | Layer | Technology |
 |---|---|
-| Language | C# (.NET 8+) |
-| Web Framework | ASP.NET Core (Minimal APIs or MVC) |
-| Database | PostgreSQL |
-| ORM | Entity Framework Core |
-| HTTP Client | `HttpClient` / `HtmlAgilityPack` or `AngleSharp` for scraping |
-| Scheduling | `BackgroundService` (hosted service) or Hangfire |
+| API language | C# (.NET 10) |
+| Web framework | ASP.NET Core Minimal API |
+| Database | PostgreSQL 17 |
+| ORM | Entity Framework Core 10 |
+| DB provider | Npgsql (EF Core PostgreSQL adapter) |
+| Scraper language | TypeScript (Node.js, ESM) |
+| Browser automation | Playwright (`@playwright/test`) |
+| Script runner | `tsx` (no compile step needed for dev) |
 
 ---
 
 ## Architecture Overview
 
-The application follows a simple layered architecture:
-
 ```
-Scraper → Data Layer (EF Core / PostgreSQL) → REST API
+tools/ (TypeScript/Node.js)
+  ├── ListingsImporter  ──HTTP POST──▶  API  ──EF Core──▶  PostgreSQL
+  └── YahooFinanceScraper (Playwright)
+        └── promote.ts  ──HTTP POST──▶  API  ──EF Core──▶  PostgreSQL
+
+api/ (C# / ASP.NET Core)
+  └── Serves stored data over HTTP to any consumer
 ```
 
-- **Scraper**: Fetches and parses data from external sources (Yahoo Finance, etc.).
-- **Data Layer**: Models, migrations, and repository logic via Entity Framework Core and PostgreSQL.
-- **REST API**: ASP.NET Core endpoints that serve stored data to consumers.
+### Layers
+
+| Layer | Project / Folder | Responsibility |
+|---|---|---|
+| Domain | `MarketScrape.Core` | Entity classes, repository interfaces |
+| Data access | `MarketScrape.Infrastructure` | EF Core `DbContext`, migrations, repository implementations |
+| API | `MarketScrape.Api` | ASP.NET Core Minimal API endpoints, DI wiring |
+| Scraper | `tools/src/scrapers/` | Playwright-based Yahoo Finance scraper |
+| Import scripts | `tools/src/` | CLI scripts for importing and promoting instruments |
 
 ---
 
 ## Data Scraping
 
-- HTTP requests made using `HttpClient` with appropriate headers to avoid rejection.
-- HTML parsing via `HtmlAgilityPack` or `AngleSharp`, or JSON parsing if an unofficial API endpoint is available.
-- Scraping targets: Yahoo Finance (stock quotes, historical prices).
-- Each scrape run records a timestamp and status (success/failure) for traceability.
+- `YahooFinanceScraper` drives a headless Chromium browser via Playwright.
+- The quote statistics panel is scraped for 16 market metrics (previous close, volume, P/E ratio, etc.).
+- Historical price data (1Y daily, 5Y weekly) and dividends are fetched from the Yahoo Finance chart JSON API using the browser's authenticated session cookie.
+- `promote.ts` runs multiple parallel workers (default: 3), each owning its own Chromium instance.
+- A shared `CircuitBreaker` halts all workers after 5 consecutive failures (across any workers), guarding against rate limiting.
 
 ---
 
 ## Database
 
-### Key Tables (subject to change)
+Schema is defined in `docs/entities/entities.md`. All migrations are in `MarketScrape.Infrastructure/Migrations/`.
 
 | Table | Description |
 |---|---|
-| `assets` | Tracked tickers/symbols (e.g. AAPL, MSFT) |
-| `price_snapshots` | Point-in-time price records (open, high, low, close, volume) |
-| `scrape_runs` | Log of each scrape execution (timestamp, status, error message) |
+| `instrument_types` | Lookup table: Equities, ETF, Stock, etc. |
+| `potential_instruments` | Raw import candidates; validated flag tracks promote progress |
+| `instruments` | Promoted, validated instruments with full metadata |
+| `instrument_price_history` | Daily (`1d`) and weekly (`1wk`) OHLCV price records |
+| `instrument_dividends` | Dividend events (ex-date, payment date, amount per share) |
 
-- Migrations managed via EF Core CLI (`dotnet ef migrations add`).
 - All timestamps stored in UTC.
+- Price values stored as `numeric(18,6)`.
+- Unique constraints prevent duplicate price history and dividend rows on upsert.
+- Migrations managed via EF Core CLI (`dotnet ef migrations add`).
 
 ---
 
 ## REST API
 
-### Base URL
-`/api/v1`
+Base URL: `http://localhost:5204`
 
-### Endpoints (initial)
+### Core CRUD endpoints
 
-| Method | Path | Description |
+All three top-level entities expose the same operations:
+
+| Method | Route | Description |
 |---|---|---|
-| `GET` | `/assets` | List all tracked assets |
-| `GET` | `/assets/{ticker}/prices` | Get price history for an asset |
-| `POST` | `/scrape` | Trigger a manual scrape run |
-| `GET` | `/scrape/runs` | List recent scrape run logs |
+| `GET` | `/{entity}` | Get all records |
+| `GET` | `/{entity}/{id}` | Get single record (404 if not found) |
+| `POST` | `/{entity}` | Create single record |
+| `POST` | `/{entity}/batch` | Create multiple records |
+| `PUT` | `/{entity}/{id}` | Update single record (404 if not found) |
+| `PUT` | `/{entity}/batch` | Update multiple records |
+| `DELETE` | `/{entity}/{id}` | Delete single record (404 if not found) |
+| `DELETE` | `/{entity}/batch` | Delete multiple records (body: `[1, 2, 3]`) |
 
-- Responses are JSON.
-- Errors return standard HTTP status codes with a message body.
+Entities: `instrument-types`, `instruments`, `potential-instruments`.
+
+### Instrument sub-resources
+
+| Method | Route | Description |
+|---|---|---|
+| `GET` | `/instruments/{id}/price-history` | Get price history (optional `?granularity=1d\|1wk`) |
+| `POST` | `/instruments/{id}/price-history/batch` | Upsert price history records; returns `{ inserted }` |
+| `GET` | `/instruments/{id}/dividends` | Get dividend records |
+| `POST` | `/instruments/{id}/dividends/batch` | Upsert dividend records; returns `{ inserted }` |
+
+### Additional
+
+| Method | Route | Description |
+|---|---|---|
+| `PATCH` | `/potential-instruments/{id}/validate` | Mark a potential instrument as validated |
+
+- All responses are JSON.
+- Errors return standard HTTP status codes.
+- OpenAPI schema available at `/openapi/v1.json` in development.
 
 ---
 
 ## Project Structure
 
 ```
-MarketScrape/
-├── src/
-│   ├── MarketScrape.Api/          # ASP.NET Core project (endpoints, startup)
-│   ├── MarketScrape.Core/         # Domain models, interfaces
-│   ├── MarketScrape.Infrastructure/  # EF Core, scrapers, external HTTP
+market-scrape/
+├── api/
+│   └── src/
+│       ├── MarketScrape.Api/           # Minimal API endpoints, Program.cs, DI wiring
+│       ├── MarketScrape.Core/          # Domain entities, repository interfaces
+│       └── MarketScrape.Infrastructure/  # AppDbContext, EF migrations, repositories
+├── tools/
+│   └── src/
+│       ├── scrapers/
+│       │   └── YahooFinanceScraper.ts  # Playwright scraper
+│       ├── importers/
+│       │   └── ListingsImporter.ts     # Bulk-imports Listings.txt via API
+│       ├── utilities/
+│       │   └── CircuitBreaker.ts       # Shared failure-threshold guard
+│       ├── types/
+│       │   └── index.ts                # Shared TypeScript types (ChartData, ScrapeResult, etc.)
+│       ├── dev.ts                      # Dev sandbox: scrape a single ticker
+│       ├── import.ts                   # Entry point: run listings importer
+│       └── promote.ts                  # Entry point: validate & promote instruments
+├── temp/                               # Sample data / scratch files
 └── docs/
+    ├── entities/entities.md            # Database schema (DBML)
+    └── specs/                          # Project specs and plans
 ```
 
 ---
@@ -89,4 +146,5 @@ MarketScrape/
 - Support additional data sources beyond Yahoo Finance.
 - Introduce a caching layer (e.g. Redis) for frequently queried data.
 - Expose aggregated or computed metrics (moving averages, etc.) via the API.
-- Potential integration with AI/ML pipeline for analytics.
+- Scheduled scrape runs via a .NET `BackgroundService` or external scheduler.
+- Structured logging (Serilog) and scrape run audit records.

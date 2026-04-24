@@ -29,6 +29,7 @@ const API_BASE_URL = process.env['API_BASE_URL'] ?? 'http://localhost:5204';
 
 import type { ScrapedStats, ScrapeResult, ChartData, PotentialInstrumentRecord, InstrumentRecord, InstrumentPayload } from './types/index.js';
 import { YahooFinanceScraper } from './scrapers/YahooFinanceScraper.js';
+import { CircuitBreaker } from './utilities/CircuitBreaker.js';
 
 // ── Helpers ──────────────────────────────────────────────────────────────────
 
@@ -145,6 +146,13 @@ async function markValidated(id: number, symbol: string): Promise<void> {
 
 let isShuttingDown = false;
 
+const circuitBreaker = new CircuitBreaker(5, () => {
+    if (!isShuttingDown) {
+        isShuttingDown = true;
+        console.log('\n[Circuit Breaker] 5 consecutive scrape failures detected — halting all workers. This may indicate rate limiting or a critical error.');
+    }
+});
+
 process.on('SIGINT', () => {
     if (!isShuttingDown) {
         isShuttingDown = true;
@@ -168,6 +176,7 @@ async function runWorker(
     existingKeys: Set<string>,
     existingIdMap: Map<string, number>,
     counters: Counters,
+    breaker: CircuitBreaker,
 ): Promise<void> {
     if (chunk.length === 0) return;
 
@@ -190,6 +199,7 @@ async function runWorker(
 
             try {
                 scrapeResult = await scraper.scrape(potential.symbol);
+                breaker.recordSuccess();
                 scrapeSuccess = isSuccessfulScrape(scrapeResult.stats);
                 const nonNull = Object.values(scrapeResult.stats).filter(v => v !== null).length;
 
@@ -199,6 +209,7 @@ async function runWorker(
                     console.log(`[Worker ${workerId}]   Scrape insufficient (${nonNull}/16 metrics — need > 3)`);
                 }
             } catch (err) {
+                breaker.recordFailure();
                 console.log(`[Worker ${workerId}]   Scrape failed: ${err instanceof Error ? err.message : err}`);
             }
 
@@ -276,7 +287,7 @@ const chunks = partition(unvalidated, workerCount);
 console.log(`\nSpinning up ${workerCount} worker(s)...\n`);
 
 await Promise.all(
-    chunks.map((chunk, i) => runWorker(i + 1, chunk, existingKeys, existingIdMap, counters))
+    chunks.map((chunk, i) => runWorker(i + 1, chunk, existingKeys, existingIdMap, counters, circuitBreaker))
 );
 
 const totalProcessed = counters.promoted + counters.skippedDupe + counters.failed;

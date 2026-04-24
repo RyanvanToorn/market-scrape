@@ -1,5 +1,7 @@
 # Phase 2 — Data Layer Plan
 
+> **Status: Complete.** All steps below have been implemented. This document is preserved as a reference for the patterns used.
+
 This phase teaches the full "C# → EF Core → PostgreSQL" stack using `InstrumentType` and `Instrument` as concrete examples. After those two are done, there is a repeatable template for adding any future table independently.
 
 ---
