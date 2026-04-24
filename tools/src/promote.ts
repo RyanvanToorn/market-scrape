@@ -25,6 +25,19 @@ const WORKERS = Math.max(1, parseInt(process.argv[2] ?? process.env['WORKERS'] ?
  */
 const HEADLESS = !process.argv.includes('--headed');
 
+/**
+ * Maximum number of symbols to process in this run. Defaults to 0 (unlimited).
+ * When set, the first N unvalidated symbols are taken (sorted as returned by the API)
+ * and split across workers as normal. Counts all outcomes — promoted, dupes, and failures.
+ * Override at runtime: npm run promote:instruments -- <workers> [--headed] [--batch=<n>]
+ * Or via env var:      BATCH_SIZE=50 npm run promote:instruments
+ */
+const BATCH_SIZE = Math.max(0, parseInt(
+    process.argv.find(a => a.startsWith('--batch='))?.split('=')[1]
+    ?? process.env['BATCH_SIZE']
+    ?? '0',
+    10) || 0);
+
 const API_BASE_URL = process.env['API_BASE_URL'] ?? 'http://localhost:5204';
 
 import type { ScrapedStats, ScrapeResult, ChartData, PotentialInstrumentRecord, InstrumentRecord, InstrumentPayload } from './types/index.js';
@@ -260,7 +273,7 @@ async function runWorker(
 
 // ── Main ──────────────────────────────────────────────────────────────────────
 
-console.log(`=== Promote Instruments (DRY_RUN=${DRY_RUN}, WORKERS=${WORKERS}, HEADLESS=${HEADLESS}) ===\n`);
+console.log(`=== Promote Instruments (DRY_RUN=${DRY_RUN}, WORKERS=${WORKERS}, HEADLESS=${HEADLESS}, BATCH_SIZE=${BATCH_SIZE || 'unlimited'}) ===\n`);
 
 const [potentials, existing] = await Promise.all([
     fetchPotentialInstruments(),
@@ -276,13 +289,18 @@ if (unvalidated.length === 0) {
     process.exit(0);
 }
 
+const toProcess = BATCH_SIZE > 0 ? unvalidated.slice(0, BATCH_SIZE) : unvalidated;
+if (BATCH_SIZE > 0) {
+    console.log(`Batch limit applied: processing ${toProcess.length} of ${unvalidated.length} unvalidated symbols.`);
+}
+
 const existingKeys = new Set<string>(existing.map(i => dupeKey(i.symbol, i.exchange)));
 const existingIdMap = new Map<string, number>(existing.map(i => [dupeKey(i.symbol, i.exchange), i.id]));
 
 const counters: Counters = { promoted: 0, skippedDupe: 0, failed: 0 };
 
-const workerCount = Math.min(WORKERS, unvalidated.length);
-const chunks = partition(unvalidated, workerCount);
+const workerCount = Math.min(WORKERS, toProcess.length);
+const chunks = partition(toProcess, workerCount);
 
 console.log(`\nSpinning up ${workerCount} worker(s)...\n`);
 
@@ -291,15 +309,16 @@ await Promise.all(
 );
 
 const totalProcessed = counters.promoted + counters.skippedDupe + counters.failed;
-const stoppedEarly = isShuttingDown || totalProcessed < unvalidated.length;
+const stoppedEarly = isShuttingDown || totalProcessed < toProcess.length;
 
 console.log(`
 === Summary ===
-  Total queued    : ${unvalidated.length}
+  Total queued    : ${toProcess.length}${BATCH_SIZE > 0 ? ` (batch limit; ${unvalidated.length} total unvalidated)` : ''}
   Total processed : ${totalProcessed}${stoppedEarly ? ' (stopped early)' : ''}
   Promoted        : ${counters.promoted}
   Skipped (dupe)  : ${counters.skippedDupe}
   Failed/removed  : ${counters.failed}
   DRY_RUN         : ${DRY_RUN}
   Workers used    : ${workerCount}
+  Batch limit     : ${BATCH_SIZE || 'unlimited'}
 `);

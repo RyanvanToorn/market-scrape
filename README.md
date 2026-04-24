@@ -123,6 +123,7 @@ npm run promote:instruments
 |----------|---------|-------------|
 | `<workers>` (positional) | `3` | Number of parallel Chromium workers. Can also be set via `$env:WORKERS`. |
 | `--headed` (flag) | headless | Pass to show the browser window during scraping. |
+| `--batch=<n>` (named) | `0` (unlimited) | Maximum number of symbols to process in this run, across all workers and outcomes. Can also be set via `$env:BATCH_SIZE`. |
 
 ```powershell
 # 5 parallel workers, headless
@@ -131,8 +132,14 @@ npm run promote:instruments -- 5
 # 3 workers, show browser
 npm run promote:instruments -- 3 --headed
 
-# Via environment variable
-$env:WORKERS=5; npm run promote:instruments
+# Process only the next 50 unvalidated symbols
+npm run promote:instruments -- --batch=50
+
+# 5 workers, headed, limited to 100 symbols
+npm run promote:instruments -- 5 --headed --batch=100
+
+# Via environment variables
+$env:WORKERS=5; $env:BATCH_SIZE=50; npm run promote:instruments
 ```
 
 > **DRY_RUN mode:** Set `DRY_RUN = true` at the top of `tools/src/promote.ts` to log all mutations without writing to the database.
