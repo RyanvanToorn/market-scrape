@@ -96,8 +96,8 @@ async function createInstrument(payload: InstrumentPayload): Promise<number | nu
     return null;
 }
 
-async function storePriceHistory(instrumentId: number, daily: ChartData, weekly: ChartData): Promise<void> {
-    const allPoints = [...daily.pricePoints, ...weekly.pricePoints];
+async function storePriceHistory(instrumentId: number, daily: ChartData, weekly: ChartData, monthly: ChartData | null): Promise<void> {
+    const allPoints = [...daily.pricePoints, ...weekly.pricePoints, ...(monthly?.pricePoints ?? [])];
     if (allPoints.length === 0) return;
 
     if (DRY_RUN) {
@@ -117,10 +117,10 @@ async function storePriceHistory(instrumentId: number, daily: ChartData, weekly:
     console.log(`  Stored ${result.inserted}/${allPoints.length} price history records.`);
 }
 
-async function storeDividends(instrumentId: number, daily: ChartData, weekly: ChartData): Promise<void> {
-    // Deduplicate dividends across both intervals by ex-date (weekly 5Y has more history)
+async function storeDividends(instrumentId: number, daily: ChartData, weekly: ChartData, monthly: ChartData | null): Promise<void> {
+    // Deduplicate dividends across all intervals by ex-date (monthly all-time has the longest history)
     const seen = new Set<string>();
-    const allDividends = [...daily.dividends, ...weekly.dividends].filter(d => {
+    const allDividends = [...daily.dividends, ...weekly.dividends, ...(monthly?.dividends ?? [])].filter(d => {
         if (seen.has(d.exDate)) return false;
         seen.add(d.exDate);
         return true;
@@ -233,8 +233,8 @@ async function runWorker(
                     console.log(`[Worker ${workerId}]   Duplicate — already in instruments. Updating price history.`);
                     const existingId = existingIdMap.get(key);
                     if (existingId !== undefined && scrapeResult) {
-                        await storePriceHistory(existingId, scrapeResult.daily, scrapeResult.weekly);
-                        await storeDividends(existingId, scrapeResult.daily, scrapeResult.weekly);
+                        await storePriceHistory(existingId, scrapeResult.daily, scrapeResult.weekly, scrapeResult.monthly);
+                        await storeDividends(existingId, scrapeResult.daily, scrapeResult.weekly, scrapeResult.monthly);
                     }
                     await markValidated(potential.id, potential.symbol);
                     counters.skippedDupe++;
@@ -252,8 +252,8 @@ async function runWorker(
                     const instrumentId = await createInstrument(payload);
                     if (instrumentId !== null) {
                         if (scrapeResult && instrumentId > 0) {
-                            await storePriceHistory(instrumentId, scrapeResult.daily, scrapeResult.weekly);
-                            await storeDividends(instrumentId, scrapeResult.daily, scrapeResult.weekly);
+                            await storePriceHistory(instrumentId, scrapeResult.daily, scrapeResult.weekly, scrapeResult.monthly);
+                            await storeDividends(instrumentId, scrapeResult.daily, scrapeResult.weekly, scrapeResult.monthly);
                         }
                         await markValidated(potential.id, potential.symbol);
                         counters.promoted++;

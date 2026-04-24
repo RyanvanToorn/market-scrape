@@ -43,7 +43,11 @@ api/ (C# / ASP.NET Core)
 
 - `YahooFinanceScraper` drives a headless Chromium browser via Playwright.
 - The quote statistics panel is scraped for 16 market metrics (previous close, volume, P/E ratio, etc.).
-- Historical price data (1Y daily, 5Y weekly) and dividends are fetched from the Yahoo Finance chart JSON API using the browser's authenticated session cookie.
+- Historical price data and dividends are fetched from the Yahoo Finance chart JSON API using the browser's authenticated session cookie. Three granularities are collected per instrument:
+  - **Daily (`1d`)** — one row per trading day, 1-year lookback
+  - **Weekly (`1wk`)** — one row per calendar week, 5-year lookback
+  - **Monthly (`1mo`)** — one row per calendar month, all-time history (only stored when Yahoo returns `1mo` granularity; skipped for newly-listed instruments where Yahoo uses a finer interval)
+- A random delay of 500–1500 ms is inserted between each chart request to reduce scrape fingerprinting.
 - `promote.ts` runs multiple parallel workers (default: 3), each owning its own Chromium instance.
 - A shared `CircuitBreaker` halts all workers after 5 consecutive failures (across any workers), guarding against rate limiting.
 
@@ -58,7 +62,7 @@ Schema is defined in `docs/entities/entities.md`. All migrations are in `MarketS
 | `instrument_types` | Lookup table: Equities, ETF, Stock, etc. |
 | `potential_instruments` | Raw import candidates; validated flag tracks promote progress |
 | `instruments` | Promoted, validated instruments with full metadata |
-| `instrument_price_history` | Daily (`1d`) and weekly (`1wk`) OHLCV price records |
+| `instrument_price_history` | OHLCV price records in three granularities: daily (`1d`), weekly (`1wk`), monthly (`1mo`) |
 | `instrument_dividends` | Dividend events (ex-date, payment date, amount per share) |
 
 - All timestamps stored in UTC.
@@ -93,7 +97,7 @@ Entities: `instrument-types`, `instruments`, `potential-instruments`.
 
 | Method | Route | Description |
 |---|---|---|
-| `GET` | `/instruments/{id}/price-history` | Get price history (optional `?granularity=1d\|1wk`) |
+| `GET` | `/instruments/{id}/price-history` | Get price history (optional `?granularity=1d\|1wk\|1mo`) |
 | `POST` | `/instruments/{id}/price-history/batch` | Upsert price history records; returns `{ inserted }` |
 | `GET` | `/instruments/{id}/dividends` | Get dividend records |
 | `POST` | `/instruments/{id}/dividends/batch` | Upsert dividend records; returns `{ inserted }` |

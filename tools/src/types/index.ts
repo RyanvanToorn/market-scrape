@@ -61,7 +61,7 @@ export interface InstrumentRecord {
 
 // ── Chart / price history types ────────────────────────────────────────────
 
-export type ChartInterval = "1d" | "1wk";
+export type ChartInterval = "1d" | "1wk" | "1mo";
 
 export interface ChartPricePoint {
   date: string;          // YYYY-MM-DD (UTC, derived from Unix epoch)
@@ -92,4 +92,5 @@ export interface ScrapeResult {
   stats: ScrapedStats;
   daily: ChartData;
   weekly: ChartData;
+  monthly: ChartData | null;
 }

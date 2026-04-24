@@ -48,7 +48,10 @@
 **Goal**: Scraper feeds data into the API/DB end-to-end.
 
 - `ListingsImporter` (`import.ts`): reads `Listings.txt`, auto-creates instrument types, bulk-inserts as `PotentialInstrument` rows in batches of 100
-- `promote.ts`: validates unvalidated `PotentialInstrument` records via Yahoo Finance scrape; promotes successful ones to `Instrument` with price history and dividends; N parallel Chromium workers (default: 3)
+- `promote.ts`: validates unvalidated `PotentialInstrument` records via Yahoo Finance scrape; promotes successful ones to `Instrument` with three granularities of price history and dividends:
+  - **Daily (`1d`)** — 1-year lookback, one row per trading day
+  - **Weekly (`1wk`)** — 5-year lookback, one row per calendar week
+  - **Monthly (`1mo`)** — all-time history, one row per calendar month (skipped if Yahoo returns a finer granularity for the symbol); N parallel Chromium workers (default: 3)
 - `CircuitBreaker` halts all workers after 5 consecutive failures across any worker (guards against rate limiting)
 - Dry-run mode (`DRY_RUN = true`) logs all mutations without writing to the DB
 

@@ -49,7 +49,7 @@ Reads `temp/Listings.txt`, auto-creates `Equities`, `ETF`, and `Stock` instrumen
 cd tools
 npm run promote:instruments
 ```
-Validates each unvalidated `PotentialInstrument` via Yahoo Finance scrape. Successfully scraped instruments are created as `Instrument` records with price history and dividends, then marked validated. Runs 3 parallel Chromium workers by default. A circuit breaker halts all workers automatically if 5 consecutive failures occur (e.g. rate limiting).
+Validates each unvalidated `PotentialInstrument` via Yahoo Finance scrape. Successfully scraped instruments are created as `Instrument` records with price history (daily, weekly, and monthly) and dividends, then marked validated. Runs 3 parallel Chromium workers by default. A circuit breaker halts all workers automatically if 5 consecutive failures occur (e.g. rate limiting).
 
 **Verify:** `docker exec -it marketscrape-db psql -U marketscrape -d marketscrape -c "SELECT COUNT(*) FROM instruments;"`
 

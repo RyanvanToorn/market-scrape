@@ -4,7 +4,7 @@ import type { ChartData, ChartDividend, ChartInterval, ChartPricePoint, ScrapedS
 
 // ── Constants ─────────────────────────────────────────────────────────────────
 
-const CHART_LOOKBACK_SECONDS: Record<ChartInterval, number> = {
+const CHART_LOOKBACK_SECONDS: Record<"1d" | "1wk", number> = {
   "1d":  1 * 365 * 24 * 60 * 60,
   "1wk": 5 * 365 * 24 * 60 * 60,
 };
@@ -52,12 +52,14 @@ export class YahooFinanceScraper {
       throw new Error(`No results found for ticker: ${ticker}`);
     }
 
-    const stats  = await this.scrapeStats(statsPanel);
-    const daily  = await this.fetchChartData(ticker, "1d", page);
+    const stats   = await this.scrapeStats(statsPanel);
+    const daily    = await this.fetchChartData(ticker, "1d",  page);
     await randomDelay(500, 1500);
-    const weekly = await this.fetchChartData(ticker, "1wk", page);
+    const weekly   = await this.fetchChartData(ticker, "1wk", page);
+    await randomDelay(500, 1500);
+    const monthly  = await this.fetchMonthlyChartData(ticker, page);
 
-    return { stats, daily, weekly };
+    return { stats, daily, weekly, monthly };
   }
 
   async close(): Promise<void> {
@@ -119,7 +121,7 @@ export class YahooFinanceScraper {
    * - interval "1d"  → looks back 1 year,  returns one row per trading day
    * - interval "1wk" → looks back 5 years, returns one row per calendar week
    */
-  private async fetchChartData(ticker: string, interval: ChartInterval, page: Page): Promise<ChartData> {
+  private async fetchChartData(ticker: string, interval: "1d" | "1wk", page: Page): Promise<ChartData> {
     const now     = Math.floor(Date.now() / 1000);
     const period1 = now - CHART_LOOKBACK_SECONDS[interval];
     const url     = buildChartUrl(ticker, period1, now, interval);
@@ -132,6 +134,31 @@ export class YahooFinanceScraper {
     const json   = await response.json() as Record<string, unknown>;
     const result = this.extractChartResult(json, ticker, interval);
     return this.parseChartResult(result, interval);
+  }
+
+  /**
+   * Fetches all-time monthly chart data (interval "1mo", period1=0).
+   * Returns null if Yahoo Finance responds with a different granularity — this can occur
+   * for newly-listed instruments where Yahoo uses a finer interval for the full-history range.
+   */
+  private async fetchMonthlyChartData(ticker: string, page: Page): Promise<ChartData | null> {
+    const now = Math.floor(Date.now() / 1000);
+    const url = buildChartUrl(ticker, 0, now, "1mo");
+
+    const response = await page.context().request.get(url);
+    if (!response.ok()) {
+      throw new Error(`Chart API request failed: ${response.status()} for ${ticker} (1mo)`);
+    }
+
+    const json   = await response.json() as Record<string, unknown>;
+    const result = this.extractChartResult(json, ticker, "1mo");
+    const meta   = result["meta"] as Record<string, unknown>;
+
+    if (meta["dataGranularity"] !== "1mo") {
+      return null;
+    }
+
+    return this.parseChartResult(result, "1mo");
   }
 
   private extractChartResult(json: Record<string, unknown>, ticker: string, interval: ChartInterval): Record<string, unknown> {

@@ -40,7 +40,7 @@ Table instrument_price_history {
   id integer [primary key]
   instrument_id integer [ref: > instruments.id]
   date date [note: 'Period start date, UTC, derived from Unix epoch']
-  granularity varchar(5) [note: '"1d" for daily (1Y), "1wk" for weekly (5Y)']
+  granularity varchar(5) [note: '"1d" = daily (1Y lookback), "1wk" = weekly (5Y lookback), "1mo" = monthly (all-time, where Yahoo returns monthly granularity)']
   open numeric(18,6) [null]
   high numeric(18,6) [null]
   low numeric(18,6) [null]
