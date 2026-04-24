@@ -64,6 +64,29 @@ function partition<T>(arr: T[], n: number): T[][] {
     return chunks;
 }
 
+/** Formats a duration in milliseconds as a human-readable string (e.g. "1h 4m 3s"). */
+function formatDuration(ms: number): string {
+    const totalSec = Math.floor(ms / 1000);
+    const hours = Math.floor(totalSec / 3600);
+    const minutes = Math.floor((totalSec % 3600) / 60);
+    const seconds = totalSec % 60;
+    if (hours > 0) return `${hours}h ${minutes}m ${seconds}s`;
+    if (minutes > 0) return `${minutes}m ${seconds}s`;
+    return `${seconds}s`;
+}
+
+/** Returns a compact progress/rate/ETA string for mid-run logging. */
+function progressLine(done: number, total: number, runStart: number): string {
+    const elapsedMin = (Date.now() - runStart) / 60000;
+    const rate = elapsedMin > 0.005 ? done / elapsedMin : 0;
+    const rateStr = rate > 0 ? `${rate.toFixed(1)}/min` : '—';
+    const remaining = total - done;
+    const etaStr = rate > 0 && remaining > 0
+        ? `ETA ~${formatDuration(Math.round((remaining / rate) * 60000))}`
+        : done >= total ? 'complete' : '—';
+    return `${done}/${total} | ${rateStr} | ${etaStr}`;
+}
+
 // ── API helpers ───────────────────────────────────────────────────────────────
 
 async function fetchPotentialInstruments(): Promise<PotentialInstrumentRecord[]> {
@@ -190,6 +213,8 @@ async function runWorker(
     existingIdMap: Map<string, number>,
     counters: Counters,
     breaker: CircuitBreaker,
+    totalItems: number,
+    runStart: number,
 ): Promise<void> {
     if (chunk.length === 0) return;
 
@@ -198,13 +223,16 @@ async function runWorker(
         console.log(`[Worker ${workerId}] Starting — ${chunk.length} instruments assigned`);
         await scraper.init(HEADLESS);
 
+        let itemIndex = 0;
         for (const potential of chunk) {
+            itemIndex++;
             if (isShuttingDown) {
                 console.log(`[Worker ${workerId}] Shutdown signal received — stopping without marking remaining items.`);
                 break;
             }
 
-            console.log(`[Worker ${workerId}] ${potential.symbol} (${potential.exchange})`);
+            const itemStart = Date.now();
+            console.log(`[Worker ${workerId}] [${itemIndex}/${chunk.length}] ${potential.symbol} (${potential.exchange})`);
 
             let scrapeSuccess = false;
 
@@ -216,14 +244,16 @@ async function runWorker(
                 scrapeSuccess = isSuccessfulScrape(scrapeResult.stats);
                 const nonNull = Object.values(scrapeResult.stats).filter(v => v !== null).length;
 
+                const itemElapsed = ((Date.now() - itemStart) / 1000).toFixed(1);
                 if (scrapeSuccess) {
-                    console.log(`[Worker ${workerId}]   Scrape OK (${nonNull}/16 metrics)`);
+                    console.log(`[Worker ${workerId}]   Scrape OK (${nonNull}/16 metrics) — ${itemElapsed}s`);
                 } else {
-                    console.log(`[Worker ${workerId}]   Scrape insufficient (${nonNull}/16 metrics — need > 3)`);
+                    console.log(`[Worker ${workerId}]   Scrape insufficient (${nonNull}/16 metrics) — ${itemElapsed}s`);
                 }
             } catch (err) {
                 breaker.recordFailure();
-                console.log(`[Worker ${workerId}]   Scrape failed: ${err instanceof Error ? err.message : err}`);
+                const itemElapsed = ((Date.now() - itemStart) / 1000).toFixed(1);
+                console.log(`[Worker ${workerId}]   Scrape failed: ${err instanceof Error ? err.message : err} — ${itemElapsed}s`);
             }
 
             if (scrapeSuccess) {
@@ -238,6 +268,7 @@ async function runWorker(
                     }
                     await markValidated(potential.id, potential.symbol);
                     counters.skippedDupe++;
+                    console.log(`[Worker ${workerId}]   Progress: ${progressLine(counters.promoted + counters.skippedDupe + counters.failed, totalItems, runStart)}`);
                 } else {
                     // Add key synchronously before the async create to prevent within-run dupes
                     existingKeys.add(key);
@@ -257,12 +288,14 @@ async function runWorker(
                         }
                         await markValidated(potential.id, potential.symbol);
                         counters.promoted++;
+                        console.log(`[Worker ${workerId}]   Progress: ${progressLine(counters.promoted + counters.skippedDupe + counters.failed, totalItems, runStart)}`);
                     }
                 }
             } else {
                 console.log(`[Worker ${workerId}]   Marking validated (scrape unsuccessful).`);
                 await markValidated(potential.id, potential.symbol);
                 counters.failed++;
+                console.log(`[Worker ${workerId}]   Progress: ${progressLine(counters.promoted + counters.skippedDupe + counters.failed, totalItems, runStart)}`);
             }
         }
     } finally {
@@ -304,12 +337,21 @@ const chunks = partition(toProcess, workerCount);
 
 console.log(`\nSpinning up ${workerCount} worker(s)...\n`);
 
+const runStart = Date.now();
+
 await Promise.all(
-    chunks.map((chunk, i) => runWorker(i + 1, chunk, existingKeys, existingIdMap, counters, circuitBreaker))
+    chunks.map((chunk, i) => runWorker(i + 1, chunk, existingKeys, existingIdMap, counters, circuitBreaker, toProcess.length, runStart))
 );
 
 const totalProcessed = counters.promoted + counters.skippedDupe + counters.failed;
 const stoppedEarly = isShuttingDown || totalProcessed < toProcess.length;
+
+const totalElapsedMs = Date.now() - runStart;
+const totalElapsedSec = totalElapsedMs / 1000;
+const avgSecPerItem = totalProcessed > 0 ? (totalElapsedSec / totalProcessed).toFixed(1) : '—';
+const itemsPerMin = totalProcessed > 0 && totalElapsedSec > 0
+    ? ((totalProcessed / totalElapsedSec) * 60).toFixed(1)
+    : '—';
 
 console.log(`
 === Summary ===
@@ -318,6 +360,10 @@ console.log(`
   Promoted        : ${counters.promoted}
   Skipped (dupe)  : ${counters.skippedDupe}
   Failed/removed  : ${counters.failed}
+  ─────────────────────────────────────────────────
+  Total elapsed   : ${formatDuration(totalElapsedMs)}
+  Avg per item    : ${avgSecPerItem}s
+  Throughput      : ${itemsPerMin} items/min (${workerCount} worker${workerCount !== 1 ? 's' : ''})
   DRY_RUN         : ${DRY_RUN}
   Workers used    : ${workerCount}
   Batch limit     : ${BATCH_SIZE || 'unlimited'}
